@@ -40,12 +40,10 @@ class _LoginScreenState extends State<LoginScreen> {
 
   Future<void> _auth() async {
     try {
-      // On essaie d'abord de connecter
       await FirebaseAuth.instance.signInWithEmailAndPassword(
         email: _email.text.trim(), password: _pass.text.trim());
     } catch (e) {
       try {
-        // Si ça échoue, on essaie de créer le compte
         await FirebaseAuth.instance.createUserWithEmailAndPassword(
           email: _email.text.trim(), password: _pass.text.trim());
       } catch (err) {
@@ -117,7 +115,13 @@ class _MainHubState extends State<MainHub> with SingleTickerProviderStateMixin {
               builder: (context, _) => Positioned(
                 top: _ctrl.value * MediaQuery.of(context).size.height,
                 left: 0, right: 0,
-                child: Container(height: 2, color: Colors.red, boxShadow: [BoxShadow(color: Colors.red, blurRadius: 10)]),
+                child: Container(
+                  height: 2, 
+                  decoration: BoxDecoration(
+                    color: Colors.red,
+                    boxShadow: [BoxShadow(color: Colors.red, blurRadius: 10, spreadRadius: 2)],
+                  ),
+                ),
               ),
             ),
             Center(child: ElevatedButton(onPressed: () => setState(() => _isPrivate = false), child: const Text("QUITTER LE MODE PRIVÉ"))),
@@ -173,4 +177,3 @@ class _MainHubState extends State<MainHub> with SingleTickerProviderStateMixin {
     ));
   }
 }
-
