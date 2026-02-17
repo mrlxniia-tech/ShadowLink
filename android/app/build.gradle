@@ -1,5 +1,68 @@
+plugins {
+    id "com.android.application"
+    id "kotlin-android"
+    // Le plugin Flutter doit être chargé ici
+    id "dev.flutter.flutter-gradle-plugin"
+    // Plugin pour Firebase
+    id "com.google.gms.google-services"
+}
+
+def localProperties = new Properties()
+def localPropertiesFile = rootProject.file('local.properties')
+if (localPropertiesFile.exists()) {
+    localPropertiesFile.withInputStream { stream ->
+        localProperties.load(stream)
+    }
+}
+
+def flutterVersionCode = localProperties.getProperty('flutter.versionCode')
+if (flutterVersionCode == null) {
+    flutterVersionCode = '1'
+}
+
+def flutterVersionName = localProperties.getProperty('flutter.versionName')
+if (flutterVersionName == null) {
+    flutterVersionName = '1.0'
+}
+
 android {
-    namespace "com.example.shadowlink" // <--- Vérifie que c'est bien écrit comme ça
-    compileSdkVersion 34
-    ...
+    // DOIT correspondre à ton google-services.json et ton MainActivity.kt
+    namespace "com.example.shadowlink" 
+    compileSdk 34
+
+    sourceSets {
+        main.java.srcDirs += 'src/main/kotlin'
+    }
+
+    defaultConfig {
+        applicationId "com.example.shadowlink"
+        // Version minimale d'Android (Lollipop)
+        minSdk 21
+        targetSdk 34
+        versionCode flutterVersionCode.toInteger()
+        versionName flutterVersionName
+    }
+
+    // Force la compatibilité Java 17 pour éviter l'erreur JVM-target
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    kotlinOptions {
+        jvmTarget = '17'
+    }
+
+    buildTypes {
+        release {
+            // On utilise la config de debug pour que tu puisses l'installer facilement
+            signingConfig signingConfigs.debug
+        }
+    }
+}
+
+dependencies {
+    // Importation de la base Firebase
+    implementation platform('com.google.firebase:firebase-bom:33.1.0')
+    implementation 'com.google.firebase:firebase-analytics'
 }
