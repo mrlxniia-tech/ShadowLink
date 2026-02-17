@@ -1,150 +1,122 @@
 import 'package:flutter/material.dart';
-import 'package:share_plus/share_plus.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
-void main() => runApp(const ShadowLinkApp());
-
-class ShadowLinkApp extends StatelessWidget {
-  const ShadowLinkApp({super.key});
+// --- HUB GAMER SHADOWLINK ---
+class GamerProfileScreen extends StatefulWidget {
+  const GamerProfileScreen({super.key});
   @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'ShadowLink',
-      debugShowCheckedModeBanner: false,
-      theme: ThemeData.dark().copyWith(
-        scaffoldBackgroundColor: const Color(0xFF0A0A0A),
-      ),
-      home: const AuthScreen(),
-    );
-  }
+  State<GamerProfileScreen> createState() => _GamerProfileScreenState();
 }
 
-// --- ÉCRAN D'INSCRIPTION ---
-class AuthScreen extends StatelessWidget {
-  const AuthScreen({super.key});
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      body: Padding(
-        padding: const EdgeInsets.all(30.0),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            // Affichage du Logo (depuis ton dossier assets)
-            Image.asset(
-              'assets/images/logo.png',
-              height: 120,
-              errorBuilder: (context, error, stackTrace) => 
-                const Icon(Icons.link, size: 80, color: Colors.blueAccent),
-            ),
-            const SizedBox(height: 20),
-            const Text("SHADOWLINK", style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, letterSpacing: 4)),
-            const SizedBox(height: 40),
-            const TextField(decoration: InputDecoration(labelText: "Pseudo", border: OutlineInputBorder())),
-            const SizedBox(height: 15),
-            const TextField(decoration: InputDecoration(labelText: "Email", border: OutlineInputBorder())),
-            const SizedBox(height: 30),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                style: ElevatedButton.styleFrom(backgroundColor: Colors.blueAccent),
-                onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const VoiceDashboard())),
-                child: const Text("S'INSCRIRE"),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
+class _GamerProfileScreenState extends State<GamerProfileScreen> {
+  // Les jeux avec leurs couleurs thématiques
+  final Map<String, Map<String, dynamic>> games = {
+    "Fortnite": {"color": Colors.purple, "icon": Icons.auto_awesome},
+    "PUBG": {"color": Colors.orange, "icon": Icons.Shield},
+    "Valorant": {"color": Colors.redAccent, "icon": Icons.target},
+    "Rocket League": {"color": Colors.blue, "icon": Icons.directions_car},
+    "GTA V": {"color": Colors.green, "icon": Icons.money},
+    "Roblox": {"color": Colors.grey, "icon": Icons.grid_view},
+    "FIFA": {"color": Colors.blue.shade900, "icon": Icons.sports_soccer},
+  };
 
-// --- DASHBOARD PRINCIPAL ---
-class VoiceDashboard extends StatefulWidget {
-  const VoiceDashboard({super.key});
-  @override
-  State<VoiceDashboard> createState() => _VoiceDashboardState();
-}
+  final Map<String, String> _pseudos = {};
 
-class _VoiceDashboardState extends State<VoiceDashboard> with SingleTickerProviderStateMixin {
-  bool _isPrivate = false;
-  late AnimationController _scanController;
-  List<String> friends = ["Shadow_Master", "Ghost_User"];
+  // Fonction pour sauvegarder les pseudos sur ton serveur Firebase
+  Future<void> _saveToFirebase() async {
+    try {
+      // On utilise l'ID unique de l'utilisateur (UID)
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        await FirebaseFirestore.instance.collection('gamers').doc(user.uid).set({
+          'pseudos': _pseudos,
+          'updatedAt': FieldValue.serverTimestamp(),
+        }, SetOptions(merge: true));
 
-  @override
-  void initState() {
-    super.initState();
-    _scanController = AnimationController(
-      vsync: this,
-      duration: const Duration(seconds: 2),
-    )..repeat(reverse: true);
-  }
-
-  @override
-  void dispose() {
-    _scanController.dispose();
-    super.dispose();
-  }
-
-  void _shareLink() {
-    Share.share("Rejoins-moi sur ShadowLink ! Mon pseudo : User_77");
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    if (_isPrivate) {
-      return Scaffold(
-        backgroundColor: Colors.black,
-        body: Stack(
-          children: [
-            // Effet Laser Scan
-            AnimatedBuilder(
-              animation: _scanController,
-              builder: (context, child) {
-                return Positioned(
-                  top: _scanController.value * MediaQuery.of(context).size.height,
-                  left: 0, right: 0,
-                  child: Container(height: 3, color: Colors.red, boxShadow: [BoxShadow(color: Colors.red.withOpacity(0.8), blurRadius: 10)]),
-                );
-              },
-            ),
-            Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(Icons.security, size: 100, color: Colors.red),
-                  const Text("SCANNER PRIVÉ", style: TextStyle(color: Colors.red, fontSize: 20, fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 50),
-                  ElevatedButton(onPressed: () => setState(() => _isPrivate = false), child: const Text("DÉCONNEXION")),
-                ],
-              ),
-            ),
-          ],
-        ),
-      );
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Profil synchronisé avec succès ! 🚀")),
+        );
+      } else {
+        // Si pas de compte, on simule une sauvegarde locale pour le test
+        print("Sauvegarde locale : $_pseudos");
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Connectez-vous pour sauvegarder en ligne !")),
+        );
+      }
+    } catch (e) {
+      print("Erreur : $e");
     }
+  }
 
+  @override
+  Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("SHADOWLINK")),
-      drawer: Drawer(
-        child: Column(
+      appBar: AppBar(
+        title: const Text("MES COMPTES JEUX"),
+        backgroundColor: Colors.black,
+        actions: [
+          IconButton(onPressed: _saveToFirebase, icon: const Icon(Icons.save, color: Colors.greenAccent))
+        ],
+      ),
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [Color(0xFF1A1A1A), Color(0xFF000000)],
+          ),
+        ),
+        child: ListView(
+          padding: const EdgeInsets.all(15),
           children: [
-            DrawerHeader(child: Image.asset('assets/images/logo.png', errorBuilder: (c, e, s) => const Icon(Icons.person, size: 50))),
-            ListTile(leading: const Icon(Icons.share), title: const Text("Partager mon lien"), onTap: _shareLink),
-            const Divider(),
-            const Text("MES AMIS"),
-            ...friends.map((name) => ListTile(leading: const Icon(Icons.person_outline), title: Text(name))),
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 20),
+              child: Text("Associe tes identifiants pour être retrouvé par la communauté :",
+                  textAlign: TextAlign.center, style: TextStyle(color: Colors.white70)),
+            ),
+            // Génération des cartes de jeux
+            ...games.entries.map((entry) => _buildGameCard(entry.key, entry.value["icon"], entry.value["color"])).toList(),
+            const SizedBox(height: 30),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.blueAccent,
+                padding: const EdgeInsets.symmetric(vertical: 15),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+              onPressed: _saveToFirebase,
+              child: const Text("METTRE À JOUR MON PROFIL", style: TextStyle(fontWeight: FontWeight.bold)),
+            ),
           ],
         ),
       ),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
+    );
+  }
+
+  Widget _buildGameCard(String name, IconData icon, Color color) {
+    return Card(
+      color: Colors.white.withOpacity(0.05),
+      margin: const EdgeInsets.only(bottom: 12),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(15),
+        side: BorderSide(color: color.withOpacity(0.3), width: 1),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Row(
           children: [
-            const Icon(Icons.mic, size: 100, color: Colors.blueAccent),
-            const SizedBox(height: 40),
-            ElevatedButton(
-              onPressed: () => setState(() => _isPrivate = true),
-              child: const Text("ACTIVER MODE PRIVÉ"),
+            Icon(icon, color: color, size: 35),
+            const SizedBox(width: 15),
+            Expanded(
+              child: TextField(
+                onChanged: (val) => _pseudos[name] = val,
+                decoration: InputDecoration(
+                  labelText: "Pseudo $name",
+                  labelStyle: TextStyle(color: color.withOpacity(0.7)),
+                  border: InputBorder.none,
+                  hintText: "Ton ID $name...",
+                ),
+              ),
             ),
           ],
         ),
