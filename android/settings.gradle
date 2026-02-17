@@ -1,25 +1,11 @@
-pluginManagement {
-    def flutterSdkPath = {
-        def properties = new Properties()
-        file("local.properties").withInputStream { properties.load(it) }
-        def flutterSdkPath = properties.getProperty("flutter.sdk")
-        return flutterSdkPath
-    }()
+include ':app'
 
-    includeBuild("$flutterSdkPath/packages/flutter_tools/gradle")
+def localPropertiesFile = new File(rootProject.projectDir, "local.properties")
+def properties = new Properties()
 
-    repositories {
-        google()
-        mavenCentral()
-        gradlePluginPortal()
-    }
-}
+assert localPropertiesFile.exists(), "Le fichier local.properties est manquant !"
 
-plugins {
-    id "dev.flutter.flutter-gradle-plugin" version "1.0.0" apply false
-    id "com.android.application" version "8.6.0" apply false // Version plus récente
-    id "org.jetbrains.kotlin.android" version "2.1.0" apply false // Version plus récente
-    id "com.google.gms.google-services" version "4.4.2" apply false
-}
+localPropertiesFile.withInputStream { properties.load(it) }
+def flutterSdkPath = properties.getProperty("flutter.sdk")
 
-include ":app"
+apply from: "$flutterSdkPath/packages/flutter_tools/gradle/app_plugin_loader.gradle"
