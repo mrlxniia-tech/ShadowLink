@@ -1,14 +1,24 @@
-plugins {
-    id "com.android.application"
-    // C'est ici que la magie opère désormais, sans le "apply from"
-    id "dev.flutter.flutter-gradle-plugin"
-    id "com.google.gms.google-services"
+def localProperties = new Properties()
+def localPropertiesFile = rootProject.file('local.properties')
+if (localPropertiesFile.exists()) {
+    localPropertiesFile.withInputStream { stream ->
+        localProperties.load(stream)
+    }
 }
 
+def flutterRoot = localProperties.getProperty('flutter.sdk')
+if (flutterRoot == null) {
+    flutterRoot = "/Users/builder/programs/flutter"
+}
+
+apply plugin: 'com.android.application'
+// Cette ligne importe les outils Flutter indispensables
+apply from: "$flutterRoot/packages/flutter_tools/gradle/flutter.gradle"
+apply plugin: 'com.google.gms.google-services'
+
 android {
-    // Correction de l'erreur "compileSdkVersion is not specified"
     namespace "com.example.shadowlink"
-    compileSdk 34
+    compileSdkVersion 34 // On utilise la syntaxe standard ici
 
     sourceSets {
         main.java.srcDirs += 'src/main/java'
@@ -16,8 +26,8 @@ android {
 
     defaultConfig {
         applicationId "com.example.shadowlink"
-        minSdk 21
-        targetSdk 34
+        minSdkVersion 21
+        targetSdkVersion 34
         versionCode 1
         versionName "1.0"
     }
@@ -33,4 +43,7 @@ dependencies {
     implementation 'com.google.firebase:firebase-analytics'
     implementation 'com.google.firebase:firebase-auth'
     implementation 'com.google.firebase:firebase-firestore'
+    
+    // Force l'inclusion de l'embedding Flutter pour corriger tes 11 erreurs
+    implementation "io.flutter:flutter_embedding_debug:1.0.0-+"
 }
