@@ -1,1 +1,29 @@
 
+  "project_info": {
+    "project_number": "1030800890289",
+    "project_id": "shadowlink-be54d",
+    "storage_bucket": "shadowlink-be54d.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1030800890289:android:67d24f3ecb3c1d39524590",
+        "android_client_info": {
+          "package_name": "com.example.shadowlink"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCnF44fMR6a7nD53xMfl-kGNEmv-6GFJUc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
