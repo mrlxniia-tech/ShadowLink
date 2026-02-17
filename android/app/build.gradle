@@ -1,18 +1,5 @@
-allprojects {
-    repositories {
-        google()
-        mavenCentral()
-    }
-}
-
-rootProject.buildDir = '../build'
-subprojects {
-    project.buildDir = "${rootProject.buildDir}/${project.name}"
-}
-subprojects {
-    project.evaluationDependsOn(':app')
-}
-
-tasks.register("clean", Delete) {
-    delete rootProject.buildDir
+android {
+    namespace "com.example.shadowlink" // <--- Vérifie que c'est bien écrit comme ça
+    compileSdkVersion 34
+    ...
 }
