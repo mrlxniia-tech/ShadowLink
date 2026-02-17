@@ -5,15 +5,21 @@ plugins {
     id "com.google.gms.google-services"
 }
 
+// FORCE : On supprime le dossier kotlin s'il réapparaît par erreur
+project.afterEvaluate {
+    tasks.named("compileDebugKotlin") {
+        enabled = false // On désactive totalement la compilation Kotlin
+    }
+}
+
 android {
     namespace "com.example.shadowlink"
     compileSdk 34
 
-    // On force l'utilisation du dossier JAVA uniquement
     sourceSets {
         main {
             java.srcDirs = ['src/main/java']
-            kotlin.srcDirs = [] 
+            kotlin.srcDirs = [] // On dit à Gradle qu'il n'y a pas de Kotlin
         }
     }
 
@@ -29,8 +35,11 @@ android {
         sourceCompatibility JavaVersion.VERSION_17
         targetCompatibility JavaVersion.VERSION_17
     }
-}
 
+    kotlinOptions {
+        jvmTarget = '17'
+    }
+}
 
 dependencies {
     implementation platform('com.google.firebase:firebase-bom:33.1.0')
