@@ -1,0 +1,17 @@
+plugins {
+    id "com.android.application"
+    id "com.google.gms.google-services"
+}
+
+android {
+    namespace "com.example.shadowlink"
+    compileSdk 34
+    defaultConfig {
+        applicationId "com.example.shadowlink"
+        minSdk 21
+        targetSdk 34
+        versionCode 1
+        versionName "1.0"
+    }
+}
+
