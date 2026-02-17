@@ -12,7 +12,3 @@ workflows:
         script: flutter build apk --debug
     artifacts:
       - build/app/outputs/flutter-apk/*.apk
-    publishing:
-      email:
-        recipients:
-          - ton-email@exemple.com
