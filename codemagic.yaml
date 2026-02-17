@@ -1,9 +1,14 @@
+workflows:
+  android-workflow:
+    name: ShadowLink Build
+    max_build_duration: 30
     scripts:
-      - name: Reparation dossier Android
-        script: flutter create . --platforms=android
-      - name: Nettoyage
-        script: flutter clean
-      - name: Installation dependances
-        script: flutter pub get
-      - name: Build APK
-        script: flutter build apk --debug --verbose
+      - name: Setup
+        script: |
+          flutter create --platforms android .
+          flutter pub get
+      - name: Build
+        script: |
+          flutter build apk --debug
+    artifacts:
+      - build/app/outputs/flutter-apk/*.apk
