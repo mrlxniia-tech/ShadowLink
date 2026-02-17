@@ -1,22 +1,12 @@
-def localProperties = new Properties()
-def localPropertiesFile = rootProject.file('local.properties')
-if (localPropertiesFile.exists()) {
-    localPropertiesFile.withInputStream { stream ->
-        localProperties.load(stream)
-    }
+plugins {
+    id "com.android.application"
+    // C'est ici que la magie opère désormais, sans le "apply from"
+    id "dev.flutter.flutter-gradle-plugin"
+    id "com.google.gms.google-services"
 }
-
-def flutterRoot = localProperties.getProperty('flutter.sdk')
-if (flutterRoot == null) {
-    flutterRoot = "/Users/builder/programs/flutter" // Chemin par défaut Codemagic
-}
-
-apply plugin: 'com.android.application'
-// CETTE LIGNE EST LA PLUS IMPORTANTE : Elle importe io.flutter
-apply from: "$flutterRoot/packages/flutter_tools/gradle/flutter.gradle"
-apply plugin: 'com.google.gms.google-services'
 
 android {
+    // Correction de l'erreur "compileSdkVersion is not specified"
     namespace "com.example.shadowlink"
     compileSdk 34
 
