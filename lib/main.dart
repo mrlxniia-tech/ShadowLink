@@ -119,12 +119,20 @@ class _MainHubState extends State<MainHub> with SingleTickerProviderStateMixin {
                   height: 2, 
                   decoration: BoxDecoration(
                     color: Colors.red,
-                    boxShadow: [BoxShadow(color: Colors.red, blurRadius: 10, spreadRadius: 2)],
+                    boxShadow: [
+                      BoxShadow(color: Colors.red.withOpacity(0.8), blurRadius: 10, spreadRadius: 2)
+                    ],
                   ),
                 ),
               ),
             ),
-            Center(child: ElevatedButton(onPressed: () => setState(() => _isPrivate = false), child: const Text("QUITTER LE MODE PRIVÉ"))),
+            Center(
+              child: ElevatedButton(
+                style: ElevatedButton.styleFrom(backgroundColor: Colors.red.shade900),
+                onPressed: () => setState(() => _isPrivate = false), 
+                child: const Text("QUITTER LE MODE PRIVÉ")
+              ),
+            ),
           ],
         ),
       );
@@ -177,3 +185,191 @@ class _MainHubState extends State<MainHub> with SingleTickerProviderStateMixin {
     ));
   }
 }
+import 'package:flutter/material.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp();
+  runApp(const ShadowLinkApp());
+}
+
+class ShadowLinkApp extends StatelessWidget {
+  const ShadowLinkApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      debugShowCheckedModeBanner: false,
+      theme: ThemeData.dark().copyWith(scaffoldBackgroundColor: Colors.black),
+      home: StreamBuilder<User?>(
+        stream: FirebaseAuth.instance.authStateChanges(),
+        builder: (context, snapshot) {
+          if (snapshot.hasData) return const MainHub();
+          return const LoginScreen();
+        },
+      ),
+    );
+  }
+}
+
+class LoginScreen extends StatefulWidget {
+  const LoginScreen({super.key});
+  @override
+  State<LoginScreen> createState() => _LoginScreenState();
+}
+
+class _LoginScreenState extends State<LoginScreen> {
+  final _email = TextEditingController();
+  final _pass = TextEditingController();
+
+  Future<void> _auth() async {
+    try {
+      await FirebaseAuth.instance.signInWithEmailAndPassword(
+        email: _email.text.trim(), password: _pass.text.trim());
+    } catch (e) {
+      try {
+        await FirebaseAuth.instance.createUserWithEmailAndPassword(
+          email: _email.text.trim(), password: _pass.text.trim());
+      } catch (err) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(err.toString())));
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Padding(
+        padding: const EdgeInsets.all(30),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Text("SHADOWLINK", style: TextStyle(fontSize: 30, fontWeight: FontWeight.bold, color: Colors.red)),
+            const SizedBox(height: 30),
+            TextField(controller: _email, decoration: const InputDecoration(labelText: "Email")),
+            TextField(controller: _pass, decoration: const InputDecoration(labelText: "Pass"), obscureText: true),
+            const SizedBox(height: 20),
+            ElevatedButton(onPressed: _auth, child: const Text("SE CONNECTER / S'INSCRIRE")),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class MainHub extends StatefulWidget {
+  const MainHub({super.key});
+  @override
+  State<MainHub> createState() => _MainHubState();
+}
+
+class _MainHubState extends State<MainHub> with SingleTickerProviderStateMixin {
+  bool _isPrivate = false;
+  late AnimationController _ctrl;
+  final List<Map<String, dynamic>> jeux = [
+    {"n": "Fortnite", "c": Colors.purple, "i": Icons.auto_awesome},
+    {"n": "GTA V", "c": Colors.green, "i": Icons.directions_car},
+    {"n": "Valorant", "c": Colors.red, "i": Icons.track_changes},
+    {"n": "FIFA", "c": Colors.blue, "i": Icons.sports_soccer},
+    {"n": "Roblox", "c": Colors.grey, "i": Icons.grid_view},
+    {"n": "PUBG", "c": Colors.orange, "i": Icons.shield},
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(vsync: this, duration: const Duration(seconds: 2))..repeat(reverse: true);
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_isPrivate) {
+      return Scaffold(
+        backgroundColor: Colors.black,
+        body: Stack(
+          children: [
+            AnimatedBuilder(
+              animation: _ctrl,
+              builder: (context, _) => Positioned(
+                top: _ctrl.value * MediaQuery.of(context).size.height,
+                left: 0, right: 0,
+                child: Container(
+                  height: 2, 
+                  decoration: BoxDecoration(
+                    color: Colors.red,
+                    boxShadow: [
+                      BoxShadow(color: Colors.red.withOpacity(0.8), blurRadius: 10, spreadRadius: 2)
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            Center(
+              child: ElevatedButton(
+                style: ElevatedButton.styleFrom(backgroundColor: Colors.red.shade900),
+                onPressed: () => setState(() => _isPrivate = false), 
+                child: const Text("QUITTER LE MODE PRIVÉ")
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return Scaffold(
+      appBar: AppBar(title: const Text("HUB GAMER"), actions: [
+        IconButton(icon: const Icon(Icons.lock), onPressed: () => setState(() => _isPrivate = true)),
+        IconButton(icon: const Icon(Icons.logout), onPressed: () => FirebaseAuth.instance.signOut()),
+      ]),
+      body: GridView.builder(
+        padding: const EdgeInsets.all(20),
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 2, crossAxisSpacing: 10, mainAxisSpacing: 10),
+        itemCount: jeux.length,
+        itemBuilder: (context, i) => GestureDetector(
+          onTap: () => _save(jeux[i]['n']),
+          child: Container(
+            decoration: BoxDecoration(color: Colors.white10, borderRadius: BorderRadius.circular(15)),
+            child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+              Icon(jeux[i]['i'], color: jeux[i]['c'], size: 40),
+              const SizedBox(height: 10),
+              Text(jeux[i]['n'], style: const TextStyle(fontWeight: FontWeight.bold)),
+            ]),
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _save(String g) {
+    final t = TextEditingController();
+    showModalBottomSheet(context: context, isScrollControlled: true, builder: (c) => Padding(
+      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom, left: 20, right: 20, top: 20),
+      child: Column(mainAxisSize: MainAxisSize.min, children: [
+        Text("Pseudo pour $g", style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+        TextField(controller: t, decoration: const InputDecoration(hintText: "Entre ton ID ici")),
+        const SizedBox(height: 20),
+        ElevatedButton(onPressed: () async {
+          final u = FirebaseAuth.instance.currentUser;
+          if (u != null) {
+            await FirebaseFirestore.instance.collection('users').doc(u.uid).set({
+              'pseudos': {g: t.text}
+            }, SetOptions(merge: true));
+            Navigator.pop(context);
+            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Sauvegardé sur Firebase !")));
+          }
+        }, child: const Text("ENREGISTRER")),
+        const SizedBox(height: 20),
+      ]),
+    ));
+  }
+}
+
