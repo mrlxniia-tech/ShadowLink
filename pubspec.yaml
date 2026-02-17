@@ -1,5 +1,5 @@
 name: shadowlink
-description: A new Flutter project.
+description: Application de communication vocale privée ShadowLink.
 publish_to: 'none'
 version: 1.0.0+1
 
@@ -9,7 +9,10 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  # Pour le son (moteur moderne)
   audioplayers: ^5.2.1
+  # Pour le partage de liens d'amis
+  share_plus: ^7.2.1
 
 dev_dependencies:
   flutter_test:
@@ -18,3 +21,6 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  # Si tu as un logo plus tard, on le déclarera ici
+  # assets:
+  #   - assets/images/logo.png
