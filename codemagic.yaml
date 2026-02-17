@@ -1,9 +1,35 @@
+# Configuration Automatique pour ton App de Chat Vocal "Shadow-Link"
 workflows:
   android-workflow:
-    name: ShadowLink
-    instance_type: linux_small
+    name: Android Prototype Build
+    max_build_duration: 30
+    instance_type: mac_mini_m1
+    environment:
+      flutter: stable
+      groups:
+        - google_play_credentials # Optionnel pour plus tard
     scripts:
-      - flutter packages pub get
-      - flutter build apk --debug
+      - name: Get Flutter packages
+        script: flutter packages pub get
+      - name: Flutter build apk
+        script: flutter build apk --debug # Debug est plus rapide pour les tests
     artifacts:
       - build/app/outputs/flutter-apk/*.apk
+    publishing:
+      email:
+        recipients:
+          - ton-email@exemple.com # Remplace par ton vrai mail pour recevoir l'appli
+
+  ios-workflow:
+    name: iOS Prototype Build
+    max_build_duration: 30
+    instance_type: mac_mini_m1
+    environment:
+      flutter: stable
+    scripts:
+      - name: Get Flutter packages
+        script: flutter packages pub get
+      - name: Flutter build ios
+        script: flutter build ios --debug --no-codesign
+    artifacts:
+      - build/ios/iphoneos/*.app
