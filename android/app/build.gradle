@@ -9,8 +9,12 @@ android {
     namespace "com.example.shadowlink"
     compileSdk 34
 
+    // On force l'utilisation du dossier JAVA uniquement
     sourceSets {
-        main.java.srcDirs += 'src/main/java'
+        main {
+            java.srcDirs = ['src/main/java']
+            kotlin.srcDirs = [] 
+        }
     }
 
     defaultConfig {
@@ -26,6 +30,7 @@ android {
         targetCompatibility JavaVersion.VERSION_17
     }
 }
+
 
 dependencies {
     implementation platform('com.google.firebase:firebase-bom:33.1.0')
