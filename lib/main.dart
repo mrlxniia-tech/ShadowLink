@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:share_plus/share_plus.dart'; // Nécessite l'ajout dans pubspec.yaml
+import 'package:share_plus/share_plus.dart';
 
 void main() => runApp(const ShadowLinkApp());
 
@@ -8,9 +8,9 @@ class ShadowLinkApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      title: 'ShadowLink',
       debugShowCheckedModeBanner: false,
       theme: ThemeData.dark().copyWith(
-        primaryColor: Colors.blueAccent,
         scaffoldBackgroundColor: const Color(0xFF0A0A0A),
       ),
       home: const AuthScreen(),
@@ -29,18 +29,24 @@ class AuthScreen extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.link, size: 80, color: Colors.blueAccent),
-            const Text("SHADOWLINK", style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, letterSpacing: 4)),
+            // Affichage du Logo (depuis ton dossier assets)
+            Image.asset(
+              'assets/images/logo.png',
+              height: 120,
+              errorBuilder: (context, error, stackTrace) => 
+                const Icon(Icons.link, size: 80, color: Colors.blueAccent),
+            ),
+            const SizedBox(height: 20),
+            const Text("SHADOWLINK", style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, letterSpacing: 4)),
             const SizedBox(height: 40),
-            TextField(decoration: InputDecoration(labelText: "Pseudo", border: OutlineInputBorder())),
+            const TextField(decoration: InputDecoration(labelText: "Pseudo", border: OutlineInputBorder())),
             const SizedBox(height: 15),
-            TextField(decoration: InputDecoration(labelText: "Email", border: OutlineInputBorder())),
-            const SizedBox(height: 15),
-            TextField(obscureText: true, decoration: InputDecoration(labelText: "Mot de passe", border: OutlineInputBorder())),
+            const TextField(decoration: InputDecoration(labelText: "Email", border: OutlineInputBorder())),
             const SizedBox(height: 30),
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
+                style: ElevatedButton.styleFrom(backgroundColor: Colors.blueAccent),
                 onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const VoiceDashboard())),
                 child: const Text("S'INSCRIRE"),
               ),
@@ -61,27 +67,26 @@ class VoiceDashboard extends StatefulWidget {
 
 class _VoiceDashboardState extends State<VoiceDashboard> with SingleTickerProviderStateMixin {
   bool _isPrivate = false;
-  List<String> friends = ["Shadow_Master", "Ghost_User"]; // Liste d'amis démo
+  late AnimationController _scanController;
+  List<String> friends = ["Shadow_Master", "Ghost_User"];
 
-  void _shareLink() {
-    Share.share("Rejoins-moi sur ShadowLink pour discuter en privé ! Mon pseudo : ShadowUser77");
+  @override
+  void initState() {
+    super.initState();
+    _scanController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 2),
+    )..repeat(reverse: true);
   }
 
-  void _addFriend() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text("Ajouter un ami"),
-        content: const TextField(decoration: InputDecoration(hintText: "Pseudo de l'ami")),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text("Annuler")),
-          TextButton(onPressed: () {
-            setState(() => friends.add("Nouvel Ami"));
-            Navigator.pop(context);
-          }, child: const Text("Ajouter")),
-        ],
-      ),
-    );
+  @override
+  void dispose() {
+    _scanController.dispose();
+    super.dispose();
+  }
+
+  void _shareLink() {
+    Share.share("Rejoins-moi sur ShadowLink ! Mon pseudo : User_77");
   }
 
   @override
@@ -89,16 +94,31 @@ class _VoiceDashboardState extends State<VoiceDashboard> with SingleTickerProvid
     if (_isPrivate) {
       return Scaffold(
         backgroundColor: Colors.black,
-        body: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(Icons.security, size: 100, color: Colors.red),
-              const Text("SCANNER PRIVÉ ACTIF", style: TextStyle(color: Colors.red, fontSize: 22, fontWeight: FontWeight.bold)),
-              const SizedBox(height: 50),
-              ElevatedButton(onPressed: () => setState(() => _isPrivate = false), child: const Text("QUITTER")),
-            ],
-          ),
+        body: Stack(
+          children: [
+            // Effet Laser Scan
+            AnimatedBuilder(
+              animation: _scanController,
+              builder: (context, child) {
+                return Positioned(
+                  top: _scanController.value * MediaQuery.of(context).size.height,
+                  left: 0, right: 0,
+                  child: Container(height: 3, color: Colors.red, boxShadow: [BoxShadow(color: Colors.red.withOpacity(0.8), blurRadius: 10)]),
+                );
+              },
+            ),
+            Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.security, size: 100, color: Colors.red),
+                  const Text("SCANNER PRIVÉ", style: TextStyle(color: Colors.red, fontSize: 20, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 50),
+                  ElevatedButton(onPressed: () => setState(() => _isPrivate = false), child: const Text("DÉCONNEXION")),
+                ],
+              ),
+            ),
+          ],
         ),
       );
     }
@@ -108,12 +128,11 @@ class _VoiceDashboardState extends State<VoiceDashboard> with SingleTickerProvid
       drawer: Drawer(
         child: Column(
           children: [
-            const DrawerHeader(child: Icon(Icons.link, size: 50, color: Colors.blueAccent)),
+            DrawerHeader(child: Image.asset('assets/images/logo.png', errorBuilder: (c, e, s) => const Icon(Icons.person, size: 50))),
             ListTile(leading: const Icon(Icons.share), title: const Text("Partager mon lien"), onTap: _shareLink),
-            ListTile(leading: const Icon(Icons.person_add), title: const Text("Ajouter un ami"), onTap: _addFriend),
             const Divider(),
-            const Padding(padding: EdgeInsets.all(16.0), child: Text("MES AMIS", style: TextStyle(color: Colors.grey))),
-            ...friends.map((name) => ListTile(leading: const Icon(Icons.person, size: 20), title: Text(name))).toList(),
+            const Text("MES AMIS"),
+            ...friends.map((name) => ListTile(leading: const Icon(Icons.person_outline), title: Text(name))),
           ],
         ),
       ),
@@ -125,7 +144,7 @@ class _VoiceDashboardState extends State<VoiceDashboard> with SingleTickerProvid
             const SizedBox(height: 40),
             ElevatedButton(
               onPressed: () => setState(() => _isPrivate = true),
-              child: const Text("MODE PRIVÉ (SCAN)"),
+              child: const Text("ACTIVER MODE PRIVÉ"),
             ),
           ],
         ),
@@ -133,3 +152,4 @@ class _VoiceDashboardState extends State<VoiceDashboard> with SingleTickerProvid
     );
   }
 }
+
