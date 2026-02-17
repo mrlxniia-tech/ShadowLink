@@ -3,7 +3,6 @@ pluginManagement {
         def properties = new Properties()
         file("local.properties").withInputStream { properties.load(it) }
         def flutterSdkPath = properties.getProperty("flutter.sdk")
-        assert flutterSdkPath != null, "flutter.sdk not set in local.properties"
         return flutterSdkPath
     }()
 
@@ -13,16 +12,14 @@ pluginManagement {
         google()
         mavenCentral()
         gradlePluginPortal()
-        // AJOUT DU REPO FLUTTER
-        maven { url 'https://storage.googleapis.com/download.flutter.io' }
     }
 }
 
 plugins {
     id "dev.flutter.flutter-gradle-plugin" version "1.0.0" apply false
-    id "com.android.application" version "8.2.1" apply false
-    id "org.jetbrains.kotlin.android" version "1.9.0" apply false
-    id "com.google.gms.google-services" version "4.4.0" apply false
+    id "com.android.application" version "8.6.0" apply false // Version plus récente
+    id "org.jetbrains.kotlin.android" version "2.1.0" apply false // Version plus récente
+    id "com.google.gms.google-services" version "4.4.2" apply false
 }
 
 include ":app"
