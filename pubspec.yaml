@@ -1,0 +1,33 @@
+name: shadow_link_vocal
+description: App de chat vocal intelligent pour gamers.
+version: 1.0.0+1
+
+environment:
+  sdk: ">=3.0.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # --- LES MOTEURS DE TON APPLI ---
+  
+  # Pour la connexion vocale ultra-rapide (comme Discord)
+  livekit_client: ^1.5.0 
+  
+  # Pour l'IA de reconnaissance vocale
+  speech_to_text: ^6.1.1 
+  
+  # Pour les sons système (bips de transition public/privé)
+  soundpool: ^2.3.0 
+  
+  # Pour un design moderne (icônes et styles)
+  cupertino_icons: ^1.0.5
+  google_fonts: ^6.1.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^2.0.0
+
+flutter:
+  uses-material-design: true
