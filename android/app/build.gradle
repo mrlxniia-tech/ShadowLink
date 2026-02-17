@@ -4,16 +4,6 @@ plugins {
     id "com.google.gms.google-services"
 }
 
-def localProperties = new Properties()
-def localPropertiesFile = rootProject.file('local.properties')
-if (localPropertiesFile.exists()) {
-    localPropertiesFile.withInputStream { stream ->
-        localProperties.load(stream)
-    }
-}
-
-def flutterRoot = localProperties.getProperty('flutter.sdk')
-
 android {
     namespace "com.example.shadowlink"
     compileSdk 34
@@ -41,4 +31,7 @@ dependencies {
     implementation 'com.google.firebase:firebase-analytics'
     implementation 'com.google.firebase:firebase-auth'
     implementation 'com.google.firebase:firebase-firestore'
+    
+    // NOTE : On ne rajoute rien ici pour io.flutter, 
+    // le plugin "dev.flutter.flutter-gradle-plugin" s'en occupe tout seul.
 }
