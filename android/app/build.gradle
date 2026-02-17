@@ -1,6 +1,5 @@
 plugins {
     id "com.android.application"
-    // On retire id "kotlin-android" pour que Gradle ne cherche plus de fichiers .kt
     id "dev.flutter.flutter-gradle-plugin"
     id "com.google.gms.google-services"
 }
@@ -12,8 +11,7 @@ android {
     sourceSets {
         main {
             java.srcDirs = ['src/main/java']
-            // On force l'exclusion totale de tout dossier kotlin
-            kotlin.srcDirs = [] 
+            kotlin.srcDirs = []
         }
     }
 
@@ -32,8 +30,13 @@ android {
 }
 
 dependencies {
+    // Importation de Firebase
     implementation platform('com.google.firebase:firebase-bom:33.1.0')
     implementation 'com.google.firebase:firebase-analytics'
     implementation 'com.google.firebase:firebase-auth'
     implementation 'com.google.firebase:firebase-firestore'
+
+    // SÉCURITÉ : On force Gradle à trouver les classes Flutter (io.flutter)
+    // Cela devrait corriger les 11 erreurs de symboles manquants
+    implementation "io.flutter:flutter_embedding_debug:1.0.0-+"
 }
