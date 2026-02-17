@@ -1,17 +1,11 @@
 workflows:
   android-workflow:
     name: ShadowLink Build
-    instance_type: linux_small
+    max_build_duration: 30
     scripts:
-      - name: Force Android Project Generation
-        script: |
-          # Cette commande va recréer la structure Android proprement
-          flutter create --platforms android .
-      - name: Install Dependencies
-        script: |
-          flutter pub get
-      - name: Build Android APK
-        script: |
-          flutter build apk --debug --target-platform android-arm64
+      - name: Reparation dossier Android
+        script: flutter create . --platforms=android
+      - name: Build APK
+        script: flutter build apk --debug
     artifacts:
       - build/app/outputs/flutter-apk/*.apk
