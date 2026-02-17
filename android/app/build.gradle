@@ -1,13 +1,10 @@
-plugins {
-    id "com.android.application"
-    id "kotlin-android"
-    id "dev.flutter.flutter-gradle-plugin"
-    id "com.google.gms.google-services"
-}
-
 android {
     namespace "com.example.shadowlink"
     compileSdk 34
+
+    sourceSets {
+        main.java.srcDirs += 'src/main/kotlin'
+    }
 
     defaultConfig {
         applicationId "com.example.shadowlink"
@@ -25,9 +22,4 @@ android {
     kotlinOptions {
         jvmTarget = '17'
     }
-}
-
-dependencies {
-    implementation platform('com.google.firebase:firebase-bom:33.1.0')
-    implementation 'com.google.firebase:firebase-analytics'
 }
