@@ -4,15 +4,22 @@ plugins {
     id "com.google.gms.google-services"
 }
 
+def localProperties = new Properties()
+def localPropertiesFile = rootProject.file('local.properties')
+if (localPropertiesFile.exists()) {
+    localPropertiesFile.withInputStream { stream ->
+        localProperties.load(stream)
+    }
+}
+
+def flutterRoot = localProperties.getProperty('flutter.sdk')
+
 android {
     namespace "com.example.shadowlink"
     compileSdk 34
 
     sourceSets {
-        main {
-            java.srcDirs = ['src/main/java']
-            kotlin.srcDirs = []
-        }
+        main.java.srcDirs += 'src/main/java'
     }
 
     defaultConfig {
@@ -30,13 +37,8 @@ android {
 }
 
 dependencies {
-    // Importation de Firebase
     implementation platform('com.google.firebase:firebase-bom:33.1.0')
     implementation 'com.google.firebase:firebase-analytics'
     implementation 'com.google.firebase:firebase-auth'
     implementation 'com.google.firebase:firebase-firestore'
-
-    // SÉCURITÉ : On force Gradle à trouver les classes Flutter (io.flutter)
-    // Cela devrait corriger les 11 erreurs de symboles manquants
-    implementation "io.flutter:flutter_embedding_debug:1.0.0-+"
 }
