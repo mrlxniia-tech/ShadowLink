@@ -3,11 +3,11 @@ workflows:
     name: ShadowLink Build
     instance_type: linux_small
     scripts:
-      - name: Create Android Folder
+      - name: Generation du dossier Android
         script: flutter create . --platforms=android
-      - name: Get Packages
+      - name: Installation des paquets
         script: flutter packages pub get
-      - name: Build APK
+      - name: Compilation APK
         script: flutter build apk --debug
     artifacts:
       - build/app/outputs/flutter-apk/*.apk
