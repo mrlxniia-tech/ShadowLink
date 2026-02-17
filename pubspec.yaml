@@ -1,26 +1,10 @@
-name: shadowlink
-description: Application de communication vocale privée ShadowLink.
-publish_to: 'none'
-version: 1.0.0+1
-
-environment:
-  sdk: '>=3.0.0 <4.0.0'
-
 dependencies:
   flutter:
     sdk: flutter
-  # Pour le son (moteur moderne)
   audioplayers: ^5.2.1
-  # Pour le partage de liens d'amis
   share_plus: ^7.2.1
-
-dev_dependencies:
-  flutter_test:
-    sdk: flutter
-  flutter_lints: ^3.0.0
-
-flutter:
-  uses-material-design: true
-  # Si tu as un logo plus tard, on le déclarera ici
-  # assets:
-  #   - assets/images/logo.png
+  # Pour le serveur et les mises à jour
+  firebase_core: ^2.24.2
+  firebase_auth: ^4.15.3
+  cloud_firestore: ^4.13.3
+  package_info_plus: ^5.0.1 # Pour détecter la version actuelle
