@@ -1,10 +1,10 @@
 plugins {
     id "com.android.application"
     id "kotlin-android"
-    // Ce plugin est celui qui fait le lien avec Flutter
     id "dev.flutter.flutter-gradle-plugin"
     id "com.google.gms.google-services"
 }
+
 
 android {
     namespace "com.example.shadowlink"
