@@ -3,18 +3,15 @@ workflows:
     name: ShadowLink Build
     instance_type: linux_small
     scripts:
-      - name: Reparation Structure Android
+      - name: Force Android Project Generation
         script: |
-          # On force la création des fichiers manquants
-          flutter create --offline --platforms android .
-          
-      - name: Installation dependances
+          # Cette commande va recréer la structure Android proprement
+          flutter create --platforms android .
+      - name: Install Dependencies
         script: |
           flutter pub get
-          
-      - name: Build APK
+      - name: Build Android APK
         script: |
-          # On lance la compilation en ignorant les erreurs de configuration mineures
-          flutter build apk --debug
+          flutter build apk --debug --target-platform android-arm64
     artifacts:
       - build/app/outputs/flutter-apk/*.apk
