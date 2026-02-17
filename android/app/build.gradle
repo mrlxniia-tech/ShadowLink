@@ -1,9 +1,7 @@
 plugins {
     id "com.android.application"
     id "kotlin-android"
-    // Le plugin Flutter doit être chargé ici
-    id "dev.flutter.flutter-gradle-plugin"
-    // Plugin pour Firebase
+    // ON NE MET PLUS LE PLUGIN FLUTTER ICI, IL EST DEJA DANS SETTINGS.GRADLE
     id "com.google.gms.google-services"
 }
 
