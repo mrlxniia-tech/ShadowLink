@@ -1,11 +1,14 @@
 plugins {
     id "com.android.application"
+    id "kotlin-android"
+    id "dev.flutter.flutter-gradle-plugin"
     id "com.google.gms.google-services"
 }
 
 android {
     namespace "com.example.shadowlink"
     compileSdk 34
+
     defaultConfig {
         applicationId "com.example.shadowlink"
         minSdk 21
@@ -15,3 +18,7 @@ android {
     }
 }
 
+dependencies {
+    implementation platform('com.google.firebase:firebase-bom:32.7.0')
+    implementation 'com.google.firebase:firebase-analytics'
+}
