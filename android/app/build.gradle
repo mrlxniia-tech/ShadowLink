@@ -32,6 +32,5 @@ dependencies {
     implementation 'com.google.firebase:firebase-auth'
     implementation 'com.google.firebase:firebase-firestore'
     
-    // NOTE : On ne rajoute rien ici pour io.flutter, 
-    // le plugin "dev.flutter.flutter-gradle-plugin" s'en occupe tout seul.
+    // ON NE RAJOUTE RIEN ICI. Le plugin Flutter fait le lien automatiquement.
 }
