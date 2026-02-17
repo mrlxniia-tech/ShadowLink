@@ -1,14 +1,9 @@
 workflows:
   android-workflow:
-    name: ShadowLink Android
-    max_build_duration: 30
+    name: ShadowLink
     instance_type: linux_small
-    environment:
-      flutter: stable
     scripts:
-      - name: Get Flutter packages
-        script: flutter packages pub get
-      - name: Build Android APK
-        script: flutter build apk --debug
+      - flutter packages pub get
+      - flutter build apk --debug
     artifacts:
       - build/app/outputs/flutter-apk/*.apk
