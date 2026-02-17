@@ -1,26 +1,27 @@
-plugins {
-    id "com.android.application"
-    id "kotlin-android"
-    id "dev.flutter.flutter-gradle-plugin"
-    id "com.google.gms.google-services"
-}
-
-// FORCE : On supprime le dossier kotlin s'il réapparaît par erreur
-project.afterEvaluate {
-    tasks.named("compileDebugKotlin") {
-        enabled = false // On désactive totalement la compilation Kotlin
+def localProperties = new Properties()
+def localPropertiesFile = rootProject.file('local.properties')
+if (localPropertiesFile.exists()) {
+    localPropertiesFile.withInputStream { stream ->
+        localProperties.load(stream)
     }
 }
+
+def flutterRoot = localProperties.getProperty('flutter.sdk')
+if (flutterRoot == null) {
+    flutterRoot = "/Users/builder/programs/flutter" // Chemin par défaut Codemagic
+}
+
+apply plugin: 'com.android.application'
+// CETTE LIGNE EST LA PLUS IMPORTANTE : Elle importe io.flutter
+apply from: "$flutterRoot/packages/flutter_tools/gradle/flutter.gradle"
+apply plugin: 'com.google.gms.google-services'
 
 android {
     namespace "com.example.shadowlink"
     compileSdk 34
 
     sourceSets {
-        main {
-            java.srcDirs = ['src/main/java']
-            kotlin.srcDirs = [] // On dit à Gradle qu'il n'y a pas de Kotlin
-        }
+        main.java.srcDirs += 'src/main/java'
     }
 
     defaultConfig {
@@ -35,13 +36,11 @@ android {
         sourceCompatibility JavaVersion.VERSION_17
         targetCompatibility JavaVersion.VERSION_17
     }
-
-    kotlinOptions {
-        jvmTarget = '17'
-    }
 }
 
 dependencies {
     implementation platform('com.google.firebase:firebase-bom:33.1.0')
     implementation 'com.google.firebase:firebase-analytics'
+    implementation 'com.google.firebase:firebase-auth'
+    implementation 'com.google.firebase:firebase-firestore'
 }
