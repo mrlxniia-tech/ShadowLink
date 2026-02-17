@@ -9,7 +9,6 @@ android {
     namespace "com.example.shadowlink"
     compileSdk 34
 
-    // Cette section indique à Gradle où se trouve ton code Kotlin
     sourceSets {
         main.java.srcDirs += 'src/main/kotlin'
     }
@@ -39,6 +38,10 @@ android {
 }
 
 dependencies {
+    // Importation de la base Firebase
     implementation platform('com.google.firebase:firebase-bom:33.1.0')
     implementation 'com.google.firebase:firebase-analytics'
+    
+    // SÉCURITÉ : On force l'accès aux classes Flutter pour corriger "Unresolved reference: io"
+    implementation "io.flutter:flutter_embedding_debug:1.0.0-+"
 }
