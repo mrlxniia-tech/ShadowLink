@@ -40,5 +40,7 @@ android {
 dependencies {
     implementation platform('com.google.firebase:firebase-bom:33.1.0')
     implementation 'com.google.firebase:firebase-analytics'
-    // PLUS BESOIN DE LA LIGNE IO.FLUTTER ICI, LE REPO EST AJOUTÉ PLUS HAUT
+    
+    // On ajoute cette ligne pour forcer Gradle à inclure les JAR de Flutter
+    implementation fileTree(dir: 'libs', include: ['*.jar'])
 }
