@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:audioplayers/audioplayers.dart';
 
 void main() {
   runApp(const ShadowLinkApp());
@@ -27,8 +28,9 @@ class VoiceDashboard extends StatefulWidget {
 
 class _VoiceDashboardState extends State<VoiceDashboard> {
   String _status = "En attente de commande...";
+  // On initialise le nouveau moteur de son
+  final AudioPlayer _audioPlayer = AudioPlayer();
 
-  // Cette fonction analyse la voix (ton erreur venait d'ici)
   void _analyzeVoice(String text) {
     setState(() {
       if (text.toLowerCase().contains("privé")) {
@@ -40,10 +42,10 @@ class _VoiceDashboardState extends State<VoiceDashboard> {
     });
   }
 
-  // La fonction qui manquait dans tes logs
   void _switchToPrivate() {
+    // Cette fonction gère le passage en privé
     print("Mode privé activé");
-    // Ajoute ici ta logique pour le salon privé
+    // Tu pourras ajouter ici la logique LiveKit plus tard
   }
 
   @override
@@ -67,4 +69,4 @@ class _VoiceDashboardState extends State<VoiceDashboard> {
       ),
     );
   }
-} // <--- L'accolade magique qui ferme tout !
+}
