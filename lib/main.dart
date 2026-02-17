@@ -40,10 +40,12 @@ class _LoginScreenState extends State<LoginScreen> {
 
   Future<void> _auth() async {
     try {
+      // On essaie d'abord de connecter
       await FirebaseAuth.instance.signInWithEmailAndPassword(
         email: _email.text.trim(), password: _pass.text.trim());
     } catch (e) {
       try {
+        // Si ça échoue, on essaie de créer le compte
         await FirebaseAuth.instance.createUserWithEmailAndPassword(
           email: _email.text.trim(), password: _pass.text.trim());
       } catch (err) {
@@ -65,7 +67,7 @@ class _LoginScreenState extends State<LoginScreen> {
             TextField(controller: _email, decoration: const InputDecoration(labelText: "Email")),
             TextField(controller: _pass, decoration: const InputDecoration(labelText: "Pass"), obscureText: true),
             const SizedBox(height: 20),
-            ElevatedButton(onPressed: _auth, child: const Text("GO")),
+            ElevatedButton(onPressed: _auth, child: const Text("SE CONNECTER / S'INSCRIRE")),
           ],
         ),
       ),
@@ -87,6 +89,8 @@ class _MainHubState extends State<MainHub> with SingleTickerProviderStateMixin {
     {"n": "GTA V", "c": Colors.green, "i": Icons.directions_car},
     {"n": "Valorant", "c": Colors.red, "i": Icons.track_changes},
     {"n": "FIFA", "c": Colors.blue, "i": Icons.sports_soccer},
+    {"n": "Roblox", "c": Colors.grey, "i": Icons.grid_view},
+    {"n": "PUBG", "c": Colors.orange, "i": Icons.shield},
   ];
 
   @override
@@ -113,17 +117,17 @@ class _MainHubState extends State<MainHub> with SingleTickerProviderStateMixin {
               builder: (context, _) => Positioned(
                 top: _ctrl.value * MediaQuery.of(context).size.height,
                 left: 0, right: 0,
-                child: Container(height: 2, color: Colors.red),
+                child: Container(height: 2, color: Colors.red, boxShadow: [BoxShadow(color: Colors.red, blurRadius: 10)]),
               ),
             ),
-            Center(child: ElevatedButton(onPressed: () => setState(() => _isPrivate = false), child: const Text("EXIT"))),
+            Center(child: ElevatedButton(onPressed: () => setState(() => _isPrivate = false), child: const Text("QUITTER LE MODE PRIVÉ"))),
           ],
         ),
       );
     }
 
     return Scaffold(
-      appBar: AppBar(title: const Text("HUB"), actions: [
+      appBar: AppBar(title: const Text("HUB GAMER"), actions: [
         IconButton(icon: const Icon(Icons.lock), onPressed: () => setState(() => _isPrivate = true)),
         IconButton(icon: const Icon(Icons.logout), onPressed: () => FirebaseAuth.instance.signOut()),
       ]),
@@ -134,10 +138,11 @@ class _MainHubState extends State<MainHub> with SingleTickerProviderStateMixin {
         itemBuilder: (context, i) => GestureDetector(
           onTap: () => _save(jeux[i]['n']),
           child: Container(
-            color: Colors.white10,
+            decoration: BoxDecoration(color: Colors.white10, borderRadius: BorderRadius.circular(15)),
             child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
               Icon(jeux[i]['i'], color: jeux[i]['c'], size: 40),
-              Text(jeux[i]['n']),
+              const SizedBox(height: 10),
+              Text(jeux[i]['n'], style: const TextStyle(fontWeight: FontWeight.bold)),
             ]),
           ),
         ),
@@ -150,8 +155,9 @@ class _MainHubState extends State<MainHub> with SingleTickerProviderStateMixin {
     showModalBottomSheet(context: context, isScrollControlled: true, builder: (c) => Padding(
       padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom, left: 20, right: 20, top: 20),
       child: Column(mainAxisSize: MainAxisSize.min, children: [
-        Text(g),
-        TextField(controller: t),
+        Text("Pseudo pour $g", style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+        TextField(controller: t, decoration: const InputDecoration(hintText: "Entre ton ID ici")),
+        const SizedBox(height: 20),
         ElevatedButton(onPressed: () async {
           final u = FirebaseAuth.instance.currentUser;
           if (u != null) {
@@ -159,9 +165,12 @@ class _MainHubState extends State<MainHub> with SingleTickerProviderStateMixin {
               'pseudos': {g: t.text}
             }, SetOptions(merge: true));
             Navigator.pop(context);
+            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Sauvegardé sur Firebase !")));
           }
-        }, child: const Text("SAVE")),
+        }, child: const Text("ENREGISTRER")),
+        const SizedBox(height: 20),
       ]),
     ));
   }
 }
+
