@@ -1,36 +1,22 @@
-name: Flutter Android Build
-
+name: Flutter_Build
 on:
   push:
       branches: [ main ]
-
       jobs:
         build:
             runs-on: ubuntu-latest
                 steps:
-                      - name: Checkout code
-                              uses: actions/checkout@v4
-
-                                    - name: Install Java
-                                            uses: actions/setup-java@v4
-                                                    with:
-                                                              distribution: 'zulu'
-                                                                        java-version: '17'
-
-                                                                              - name: Install Flutter
-                                                                                      uses: subosito/flutter-action@v2
-                                                                                              with:
-                                                                                                        channel: 'stable'
-
-                                                                                                              - name: Download Pub packages
-                                                                                                                      run: flutter pub get
-
-                                                                                                                            - name: Build Debug APK
-                                                                                                                                    run: flutter build apk --debug
-
-                                                                                                                                          - name: Save APK
-                                                                                                                                                  uses: actions/upload-artifact@v4
-                                                                                                                                                          with:
-                                                                                                                                                                    name: my-app-apk
-                                                                                                                                                                              path: build/app/outputs/flutter-apk/app-debug.apk
-                                                                                                                                                                              
+                      - uses: actions/checkout@v4
+                            - uses: actions/setup-java@v4
+                                    with:
+                                              distribution: 'zulu'
+                                                        java-version: '17'
+                                                              - uses: subosito/flutter-action@v2
+                                                                      with:
+                                                                                channel: 'stable'
+                                                                                      - run: flutter pub get
+                                                                                            - run: flutter build apk --debug
+                                                                                                  - uses: actions/upload-artifact@v4
+                                                                                                          with:
+                                                                                                                    name: app-debug
+                                                                                                                              path: build/app/outputs/flutter-apk/app-debug.apk
