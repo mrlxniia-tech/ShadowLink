@@ -1,18 +1,9 @@
 plugins {
     id "com.android.application"
+    // On active le plugin ici, c'est lui qui va régler tes 11 erreurs
     id "dev.flutter.flutter-gradle-plugin"
     id "com.google.gms.google-services"
 }
-
-// FORCE : On récupère le chemin du SDK Flutter pour injecter les dépendances
-def localProperties = new Properties()
-def localPropertiesFile = rootProject.file('local.properties')
-if (localPropertiesFile.exists()) {
-    localPropertiesFile.withInputStream { stream ->
-        localProperties.load(stream)
-    }
-}
-def flutterRoot = localProperties.getProperty('flutter.sdk')
 
 android {
     namespace "com.example.shadowlink"
@@ -36,13 +27,11 @@ android {
     }
 }
 
-// C'est ici qu'on règle tes 11 erreurs : on force l'inclusion du moteur Flutter
 dependencies {
     implementation platform('com.google.firebase:firebase-bom:33.1.0')
     implementation 'com.google.firebase:firebase-analytics'
     implementation 'com.google.firebase:firebase-auth'
     implementation 'com.google.firebase:firebase-firestore'
     
-    // Ajout de sécurité pour l'embedding
-    implementation "io.flutter:flutter_embedding_debug:1.0.0-e672b24d4554ee5d6086f5223c6f455e9664f33b"
+    // On ne rajoute PAS de ligne io.flutter ici, le plugin du haut s'en occupe.
 }
