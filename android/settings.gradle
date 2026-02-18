@@ -12,7 +12,6 @@ pluginManagement {
         google()
         mavenCentral()
         gradlePluginPortal()
-        // Cette ligne est capitale pour que Gradle trouve les fichiers Flutter
         maven { url 'https://storage.googleapis.com/download.flutter.io' }
     }
 }
