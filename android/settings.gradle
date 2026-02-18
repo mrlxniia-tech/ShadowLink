@@ -3,6 +3,7 @@ pluginManagement {
         def properties = new Properties()
         file("local.properties").withInputStream { properties.load(it) }
         def flutterSdkPath = properties.getProperty("flutter.sdk")
+        assert flutterSdkPath != null, "flutter.sdk not set in local.properties"
         return flutterSdkPath
     }()
 
@@ -12,7 +13,7 @@ pluginManagement {
         google()
         mavenCentral()
         gradlePluginPortal()
-        // OBLIGATOIRE pour résoudre io.flutter
+        // Ajout du dépôt Flutter pour télécharger les bibliothèques manquantes
         maven { url 'https://storage.googleapis.com/download.flutter.io' }
     }
 }
