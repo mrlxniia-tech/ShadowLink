@@ -12,6 +12,7 @@ pluginManagement {
         google()
         mavenCentral()
         gradlePluginPortal()
+        // OBLIGATOIRE pour résoudre io.flutter
         maven { url 'https://storage.googleapis.com/download.flutter.io' }
     }
 }
