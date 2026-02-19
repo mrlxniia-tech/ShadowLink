@@ -1,6 +1,5 @@
 plugins {
     id "com.android.application"
-    // On active le plugin ici, c'est lui qui va régler tes 11 erreurs
     id "dev.flutter.flutter-gradle-plugin"
     id "com.google.gms.google-services"
 }
@@ -9,29 +8,19 @@ android {
     namespace "com.example.shadowlink"
     compileSdk 34
 
-    sourceSets {
-        main.java.srcDirs += 'src/main/java'
-    }
-
     defaultConfig {
         applicationId "com.example.shadowlink"
-        minSdk 21
+        minSdk 23
         targetSdk 34
         versionCode 1
         versionName "1.0"
     }
 
-    compileOptions {
-        sourceCompatibility JavaVersion.VERSION_17
-        targetCompatibility JavaVersion.VERSION_17
+    buildTypes {
+        release {
+            signingConfig signingConfigs.debug
+        }
     }
 }
 
-dependencies {
-    implementation platform('com.google.firebase:firebase-bom:33.1.0')
-    implementation 'com.google.firebase:firebase-analytics'
-    implementation 'com.google.firebase:firebase-auth'
-    implementation 'com.google.firebase:firebase-firestore'
-    
-    // On ne rajoute PAS de ligne io.flutter ici, le plugin du haut s'en occupe.
-}
+dependencies {}
