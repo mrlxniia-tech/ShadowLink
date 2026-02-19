@@ -1,19 +1,27 @@
-allprojects {
-    repositories {
-        google()
-        mavenCentral()
-    }
-}
+plugins {
+        id "com.android.application"
+            id "dev.flutter.flutter-gradle-plugin"
+                id "com.google.gms.google-services"
+                }
 
-rootProject.buildDir = '../build'
-subprojects {
-    project.buildDir = "${rootProject.buildDir}/${project.name}"
-}
-subprojects {
-    project.evaluationDependsOn(':app')
-}
+                android {
+                    namespace "com.example.shadowlink"
+                        compileSdk 34
 
-tasks.register("clean", Delete) {
-    delete rootProject.buildDir
-}
+                            defaultConfig {
+                                    applicationId "com.example.shadowlink"
+                                            minSdk 23
+                                                    targetSdk 34
+                                                            versionCode 1
+                                                                    versionName "1.0"
+                                                                        }
 
+                                                                            buildTypes {
+                                                                                    release {
+                                                                                                signingConfig signingConfigs.debug
+                                                                                                        }
+                                                                                                            }
+                                                                                                            }
+
+                                                                                                            dependencies {}
+}
