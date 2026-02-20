@@ -62,9 +62,9 @@ class _LoginPageState extends State<LoginPage> {
           children: [
             const Icon(Icons.gamepad, size: 80, color: Colors.deepPurpleAccent),
             const SizedBox(height: 30),
-            TextField(controller: emailController, decoration: InputDecoration(labelText: 'Email', border: OutlineInputBorder()), keyboardType: TextInputType.emailAddress),
+            TextField(controller: emailController, decoration: const InputDecoration(labelText: 'Email', border: OutlineInputBorder()), keyboardType: TextInputType.emailAddress),
             const SizedBox(height: 16),
-            TextField(controller: passwordController, decoration: InputDecoration(labelText: 'Mot de passe', border: OutlineInputBorder()), obscureText: true),
+            TextField(controller: passwordController, decoration: const InputDecoration(labelText: 'Mot de passe', border: OutlineInputBorder()), obscureText: true),
             const SizedBox(height: 32),
             ElevatedButton(onPressed: seConnecter, style: ElevatedButton.styleFrom(minimumSize: const Size(double.infinity, 50)), child: const Text('Se connecter')),
             TextButton(
@@ -136,11 +136,11 @@ class _RegisterPageState extends State<RegisterPage> {
         padding: const EdgeInsets.all(16.0),
         child: Column(
           children: [
-            TextField(controller: emailController, decoration: InputDecoration(labelText: 'Email', border: OutlineInputBorder()), keyboardType: TextInputType.emailAddress),
+            TextField(controller: emailController, decoration: const InputDecoration(labelText: 'Email', border: OutlineInputBorder()), keyboardType: TextInputType.emailAddress),
             const SizedBox(height: 10),
-            TextField(controller: passwordController, decoration: InputDecoration(labelText: 'Mot de passe', border: OutlineInputBorder()), obscureText: true),
+            TextField(controller: passwordController, decoration: const InputDecoration(labelText: 'Mot de passe', border: OutlineInputBorder()), obscureText: true),
             const SizedBox(height: 10),
-            TextField(controller: pseudoGeneralController, decoration: InputDecoration(labelText: 'Pseudo Principal', border: OutlineInputBorder())),
+            TextField(controller: pseudoGeneralController, decoration: const InputDecoration(labelText: 'Pseudo Principal', border: OutlineInputBorder())),
             const SizedBox(height: 30),
             ...listeJeux.map((jeu) => Column(
               children: [
@@ -229,7 +229,6 @@ class _MainScreenState extends State<MainScreen> {
       appBar: AppBar(
         title: Text('# $salonActuel'),
         actions: [
-          // LA CLOCHE DE NOTIFICATIONS EN TEMPS RÉEL
           StreamBuilder<QuerySnapshot>(
             stream: FirebaseFirestore.instance.collection('utilisateurs').doc(myUid).collection('notifications').where('lu', isEqualTo: false).snapshots(),
             builder: (context, snapshot) {
@@ -263,20 +262,15 @@ class _MainScreenState extends State<MainScreen> {
   }
 }
 
-// --- LA PAGE DES NOTIFICATIONS ---
+// --- PAGE DES NOTIFICATIONS ---
 class NotificationsPage extends StatelessWidget {
   const NotificationsPage({super.key});
 
   Future<void> accepterAmi(String myUid, String notifId, String uidDemandeur, String pseudoDemandeur) async {
-    // 1. On m'ajoute son pseudo
     await FirebaseFirestore.instance.collection('utilisateurs').doc(myUid).update({'amis': FieldValue.arrayUnion([pseudoDemandeur])});
-    
-    // 2. On récupère mon pseudo à moi pour l'ajouter chez lui
     var myDoc = await FirebaseFirestore.instance.collection('utilisateurs').doc(myUid).get();
     String monPseudo = myDoc.data()?['pseudos']?['Général'] ?? 'Joueur';
     await FirebaseFirestore.instance.collection('utilisateurs').doc(uidDemandeur).update({'amis': FieldValue.arrayUnion([monPseudo])});
-
-    // 3. On supprime la notif
     await FirebaseFirestore.instance.collection('utilisateurs').doc(myUid).collection('notifications').doc(notifId).delete();
   }
 
@@ -365,7 +359,6 @@ class _FriendsPageState extends State<FriendsPage> {
       var myDoc = await FirebaseFirestore.instance.collection('utilisateurs').doc(myUid).get();
       String monPseudo = myDoc.data()?['pseudos']?['Général'] ?? 'Joueur';
 
-      // ON ENVOIE LA NOTIFICATION A L'AUTRE JOUEUR
       await FirebaseFirestore.instance.collection('utilisateurs').doc(targetUid).collection('notifications').add({
          'type': 'ami',
          'de': monPseudo,
@@ -388,7 +381,7 @@ class _FriendsPageState extends State<FriendsPage> {
             padding: const EdgeInsets.all(16.0),
             child: Row(
               children: [
-                Expanded(child: TextField(controller: searchController, decoration: InputDecoration(hintText: "Ajouter un pseudo...", border: OutlineInputBorder()))),
+                Expanded(child: TextField(controller: searchController, decoration: const InputDecoration(hintText: "Ajouter un pseudo...", border: OutlineInputBorder()))),
                 const SizedBox(width: 8),
                 ElevatedButton(onPressed: envoyerDemandeAmi, style: ElevatedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 15)), child: const Text("Demander")),
               ],
@@ -423,7 +416,7 @@ class _FriendsPageState extends State<FriendsPage> {
   }
 }
 
-// --- WIDGET CHAT (Avec mentions !) ---
+// --- WIDGET CHAT (CORRIGÉ AVEC SAFEAREA) ---
 class ChatWidget extends StatefulWidget {
   final String nomDuJeu;
   const ChatWidget({super.key, required this.nomDuJeu});
@@ -450,7 +443,6 @@ class _ChatWidgetState extends State<ChatWidget> {
       }
     } catch (e) { }
 
-    // 1. On envoie le message dans le salon
     await FirebaseFirestore.instance.collection('salons').doc(widget.nomDuJeu).collection('messages').add({
       'texte': texte,
       'expediteur': monPseudoActuel,
@@ -458,17 +450,14 @@ class _ChatWidgetState extends State<ChatWidget> {
       'timestamp': FieldValue.serverTimestamp(),
     });
 
-    // 2. DETECTION DES MENTIONS (@Pseudo)
     RegExp exp = RegExp(r'@(\w+)');
     Iterable<RegExpMatch> matches = exp.allMatches(texte);
     for (final m in matches) {
       String mentionedPseudo = m.group(1)!;
-      // On cherche si ce joueur existe
       var query = await FirebaseFirestore.instance.collection('utilisateurs').where('pseudos.Général', isEqualTo: mentionedPseudo).get();
       if (query.docs.isNotEmpty) {
         String targetUid = query.docs.first.id;
         if (targetUid != user.uid) {
-          // On lui envoie une notification !
           await FirebaseFirestore.instance.collection('utilisateurs').doc(targetUid).collection('notifications').add({
             'type': 'mention',
             'de': monPseudoActuel,
@@ -520,13 +509,17 @@ class _ChatWidgetState extends State<ChatWidget> {
             },
           ),
         ),
-        Padding(
-          padding: const EdgeInsets.all(8.0),
-          child: Row(
-            children: [
-              Expanded(child: TextField(controller: messageController, decoration: InputDecoration(hintText: "Message (utilise @Pseudo pour mentionner)...", border: OutlineInputBorder(borderRadius: BorderRadius.circular(25)), contentPadding: const EdgeInsets.symmetric(horizontal: 20)))),
-              CircleAvatar(backgroundColor: Colors.deepPurpleAccent, child: IconButton(icon: const Icon(Icons.send, color: Colors.white), onPressed: envoyerMessage))
-            ],
+        // C'EST ICI QUE LA MAGIE OPERE : SafeArea pour éviter la barre du bas
+        SafeArea(
+          top: false, // On ne veut pas de safe area en haut ici
+          child: Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: Row(
+              children: [
+                Expanded(child: TextField(controller: messageController, decoration: InputDecoration(hintText: "Message (@Pseudo)...", border: OutlineInputBorder(borderRadius: BorderRadius.circular(25)), contentPadding: const EdgeInsets.symmetric(horizontal: 20)))),
+                CircleAvatar(backgroundColor: Colors.deepPurpleAccent, child: IconButton(icon: const Icon(Icons.send, color: Colors.white), onPressed: envoyerMessage))
+              ],
+            ),
           ),
         ),
       ],
