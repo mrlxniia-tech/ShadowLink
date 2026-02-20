@@ -23,10 +23,7 @@ class MyApp extends StatelessWidget {
         primarySwatch: Colors.deepPurple,
         brightness: Brightness.dark,
         scaffoldBackgroundColor: const Color(0xFF0D0D12),
-        appBarTheme: const AppBarTheme(
-          backgroundColor: Colors.black87,
-          elevation: 0,
-        ),
+        appBarTheme: const AppBarTheme(backgroundColor: Colors.black87, elevation: 0),
       ),
       home: FirebaseAuth.instance.currentUser == null ? const LoginPage() : const MainScreen(),
       debugShowCheckedModeBanner: false,
@@ -44,6 +41,7 @@ class LoginPage extends StatefulWidget {
 class _LoginPageState extends State<LoginPage> {
   final TextEditingController emailController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
+  bool _obscurePassword = true; // Pour cacher/afficher le mdp
 
   Future<void> seConnecter() async {
     if (emailController.text.trim().isEmpty || passwordController.text.trim().isEmpty) return;
@@ -55,16 +53,26 @@ class _LoginPageState extends State<LoginPage> {
     }
   }
 
+  // NOUVEAU : Fonction Mot de passe oublié (Sécurisé par Firebase)
+  Future<void> motDePasseOublie() async {
+    if (emailController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Tape ton adresse Email en haut puis clique ici."), backgroundColor: Colors.orange));
+      return;
+    }
+    try {
+      await FirebaseAuth.instance.sendPasswordResetEmail(email: emailController.text.trim());
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("✉️ Email de réinitialisation envoyé ! Vérifie tes spams."), backgroundColor: Colors.green));
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Erreur : Email introuvable ou invalide."), backgroundColor: Colors.red));
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: Container(
         decoration: BoxDecoration(
-          image: DecorationImage(
-            image: const NetworkImage('https://images.unsplash.com/photo-1542751371-adc38448a05e?q=80&w=2070&auto=format&fit=crop'),
-            fit: BoxFit.cover,
-            colorFilter: ColorFilter.mode(Colors.black.withOpacity(0.7), BlendMode.darken),
-          ),
+          image: DecorationImage(image: const NetworkImage('https://images.unsplash.com/photo-1542751371-adc38448a05e?q=80&w=2070&auto=format&fit=crop'), fit: BoxFit.cover, colorFilter: ColorFilter.mode(Colors.black.withOpacity(0.7), BlendMode.darken)),
         ),
         child: Padding(
           padding: const EdgeInsets.all(16.0),
@@ -77,13 +85,33 @@ class _LoginPageState extends State<LoginPage> {
               const SizedBox(height: 30),
               TextField(controller: emailController, decoration: InputDecoration(labelText: 'Email', filled: true, fillColor: Colors.black54, border: OutlineInputBorder(borderRadius: BorderRadius.circular(15))), keyboardType: TextInputType.emailAddress),
               const SizedBox(height: 16),
-              TextField(controller: passwordController, decoration: InputDecoration(labelText: 'Mot de passe', filled: true, fillColor: Colors.black54, border: OutlineInputBorder(borderRadius: BorderRadius.circular(15))), obscureText: true),
-              const SizedBox(height: 32),
-              ElevatedButton(onPressed: seConnecter, style: ElevatedButton.styleFrom(backgroundColor: Colors.cyanAccent, minimumSize: const Size(double.infinity, 50), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15))), child: const Text('CONNEXION', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold, letterSpacing: 2))),
-              TextButton(
-                onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const RegisterPage())),
-                child: const Text("Créer un profil Gamer", style: TextStyle(color: Colors.cyanAccent)),
+              
+              // NOUVEAU : Champ Mot de passe avec l'œil
+              TextField(
+                controller: passwordController, 
+                obscureText: _obscurePassword, 
+                decoration: InputDecoration(
+                  labelText: 'Mot de passe', 
+                  filled: true, 
+                  fillColor: Colors.black54, 
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(15)),
+                  suffixIcon: IconButton(
+                    icon: Icon(_obscurePassword ? Icons.visibility_off : Icons.visibility, color: Colors.cyanAccent),
+                    onPressed: () { setState(() { _obscurePassword = !_obscurePassword; }); },
+                  )
+                )
               ),
+              
+              const SizedBox(height: 10),
+              // NOUVEAU : Bouton Mot de Passe Oublié
+              Align(
+                alignment: Alignment.centerRight,
+                child: TextButton(onPressed: motDePasseOublie, child: const Text("Mot de passe oublié ?", style: TextStyle(color: Colors.grey))),
+              ),
+
+              const SizedBox(height: 10),
+              ElevatedButton(onPressed: seConnecter, style: ElevatedButton.styleFrom(backgroundColor: Colors.cyanAccent, minimumSize: const Size(double.infinity, 50), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15))), child: const Text('CONNEXION', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold, letterSpacing: 2))),
+              TextButton(onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const RegisterPage())), child: const Text("Créer un profil Gamer", style: TextStyle(color: Colors.cyanAccent))),
             ],
           ),
         ),
@@ -107,14 +135,12 @@ class _RegisterPageState extends State<RegisterPage> {
   final Map<String, bool> jeuxCoches = {};
   final Map<String, TextEditingController> pseudosJeux = {};
   bool isChargement = false;
+  bool _obscurePassword = true; // Pour l'inscription aussi !
 
   @override
   void initState() {
     super.initState();
-    for (var jeu in listeJeux) {
-      jeuxCoches[jeu] = false;
-      pseudosJeux[jeu] = TextEditingController();
-    }
+    for (var jeu in listeJeux) { jeuxCoches[jeu] = false; pseudosJeux[jeu] = TextEditingController(); }
   }
 
   Future<void> creerCompte() async {
@@ -123,23 +149,12 @@ class _RegisterPageState extends State<RegisterPage> {
     try {
       UserCredential userCred = await FirebaseAuth.instance.createUserWithEmailAndPassword(email: emailController.text.trim(), password: passwordController.text.trim());
       Map<String, String> tousMesPseudos = {"Général": pseudoGeneralController.text.trim()};
-      for (var jeu in listeJeux) {
-        if (jeuxCoches[jeu] == true && pseudosJeux[jeu]!.text.trim().isNotEmpty) {
-          tousMesPseudos[jeu] = pseudosJeux[jeu]!.text.trim();
-        }
-      }
-      await FirebaseFirestore.instance.collection('utilisateurs').doc(userCred.user!.uid).set({
-        'email': emailController.text.trim(),
-        'pseudos': tousMesPseudos,
-        'amis': [],
-        'dateCreation': FieldValue.serverTimestamp(),
-      });
+      for (var jeu in listeJeux) { if (jeuxCoches[jeu] == true && pseudosJeux[jeu]!.text.trim().isNotEmpty) { tousMesPseudos[jeu] = pseudosJeux[jeu]!.text.trim(); } }
+      await FirebaseFirestore.instance.collection('utilisateurs').doc(userCred.user!.uid).set({'email': emailController.text.trim(), 'pseudos': tousMesPseudos, 'amis': [], 'dateCreation': FieldValue.serverTimestamp()});
       Navigator.pushAndRemoveUntil(context, MaterialPageRoute(builder: (context) => const MainScreen()), (route) => false);
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Erreur de création"), backgroundColor: Colors.red));
-    } finally {
-      setState(() => isChargement = false);
-    }
+    } finally { setState(() => isChargement = false); }
   }
 
   @override
@@ -152,7 +167,15 @@ class _RegisterPageState extends State<RegisterPage> {
           children: [
             TextField(controller: emailController, decoration: const InputDecoration(labelText: 'Email', border: OutlineInputBorder()), keyboardType: TextInputType.emailAddress),
             const SizedBox(height: 10),
-            TextField(controller: passwordController, decoration: const InputDecoration(labelText: 'Mot de passe', border: OutlineInputBorder()), obscureText: true),
+            TextField(
+              controller: passwordController, 
+              obscureText: _obscurePassword, 
+              decoration: InputDecoration(
+                labelText: 'Mot de passe', 
+                border: const OutlineInputBorder(),
+                suffixIcon: IconButton(icon: Icon(_obscurePassword ? Icons.visibility_off : Icons.visibility, color: Colors.cyanAccent), onPressed: () { setState(() { _obscurePassword = !_obscurePassword; }); })
+              )
+            ),
             const SizedBox(height: 10),
             TextField(controller: pseudoGeneralController, decoration: const InputDecoration(labelText: 'Pseudo Principal', border: OutlineInputBorder())),
             const SizedBox(height: 30),
@@ -194,6 +217,18 @@ class _MainScreenState extends State<MainScreen> {
     "Valorant": "https://images.unsplash.com/photo-1550745165-9bc0b252726f?q=80&w=200&auto=format&fit=crop",
   };
 
+  // NOUVEAU : Dictionnaire des Fonds d'écran dynamiques !!
+  final Map<String, String> fondsEcrans = {
+    "Général": "https://images.unsplash.com/photo-1542751371-adc38448a05e?q=80&w=1080&auto=format&fit=crop",
+    "Call of Duty": "https://images.unsplash.com/photo-1605901309584-818e25960b8f?q=80&w=1080&auto=format&fit=crop", // Militaire
+    "Minecraft": "https://images.unsplash.com/photo-1607513746994-51f730a44832?q=80&w=1080&auto=format&fit=crop", // Cubes
+    "Roblox": "https://images.unsplash.com/photo-1610041321420-a596dd14ebc9?q=80&w=1080&auto=format&fit=crop", // Jouets
+    "Fortnite": "https://images.unsplash.com/photo-1589241062272-c0a000072dfa?q=80&w=1080&auto=format&fit=crop", // Couleurs vives
+    "Clash Royale": "https://images.unsplash.com/photo-1511512578047-dfb367046420?q=80&w=1080&auto=format&fit=crop", 
+    "Ea FC": "https://images.unsplash.com/photo-1508344928928-7165b67de128?q=80&w=1080&auto=format&fit=crop", // Stade de foot
+    "Valorant": "https://images.unsplash.com/photo-1550745165-9bc0b252726f?q=80&w=1080&auto=format&fit=crop", // Néon et armes
+  };
+
   late stt.SpeechToText _speech;
   bool _isListening = false;
   String _texteEcoute = "";
@@ -219,33 +254,27 @@ class _MainScreenState extends State<MainScreen> {
           onResult: (val) {
             setState(() => _texteEcoute = val.recognizedWords.toLowerCase());
             if (_texteEcoute.contains("fin") || _texteEcoute.contains("mute")) {
-              _speech.stop();
-              setState(() => _isListening = false);
-              return;
+              _speech.stop(); setState(() => _isListening = false); return;
             }
             if (_texteEcoute.contains("shadow fait une conversation privée avec")) {
               List<String> mots = _texteEcoute.split("avec");
               if (mots.length > 1) {
                 String pseudoJoueur = mots.last.trim();
-                _speech.stop();
-                setState(() => _isListening = false);
-                setState(() {
-                  salonActuel = "Privé : $pseudoJoueur";
-                  if (!tousLesSalons.contains(salonActuel)) tousLesSalons.add(salonActuel);
-                });
+                _speech.stop(); setState(() => _isListening = false);
+                setState(() { salonActuel = "Privé : $pseudoJoueur"; if (!tousLesSalons.contains(salonActuel)) tousLesSalons.add(salonActuel); });
               }
             }
           },
         );
       }
-    } else {
-      setState(() => _isListening = false);
-      _speech.stop();
-    }
+    } else { setState(() => _isListening = false); _speech.stop(); }
   }
 
   @override
   Widget build(BuildContext context) {
+    // Si c'est un salon privé, on utilise le fond du "Général" par défaut.
+    String fondEgal = fondsEcrans[salonActuel] ?? fondsEcrans["Général"]!;
+
     return Scaffold(
       appBar: AppBar(
         title: Text(salonActuel.toUpperCase(), style: const TextStyle(fontWeight: FontWeight.bold, letterSpacing: 1.5, color: Colors.cyanAccent)),
@@ -267,27 +296,15 @@ class _MainScreenState extends State<MainScreen> {
         backgroundColor: const Color(0xFF1A1A24),
         child: Column(
           children: [
-            // L'EN-TÊTE DU MENU AVEC LE LOGO ET LE TEXTE
             DrawerHeader(
-              decoration: BoxDecoration(
-                image: DecorationImage(
-                  image: NetworkImage('https://images.unsplash.com/photo-1511512578047-dfb367046420?q=80&w=2071&auto=format&fit=crop'), 
-                  fit: BoxFit.cover, 
-                  colorFilter: ColorFilter.mode(Colors.black54, BlendMode.darken)
-                ),
-              ),
+              decoration: const BoxDecoration(image: DecorationImage(image: NetworkImage('https://images.unsplash.com/photo-1511512578047-dfb367046420?q=80&w=2071&auto=format&fit=crop'), fit: BoxFit.cover, colorFilter: ColorFilter.mode(Colors.black54, BlendMode.darken))),
               child: Center(
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    // NOTRE MAGNIFIQUE LOGO !
-                    const CircleAvatar(
-                      radius: 20,
-                      backgroundImage: NetworkImage('https://i.ibb.co/tP5c32d/logo.png'), // Lien vers ton logo
-                      backgroundColor: Colors.transparent,
-                    ),
-                    const SizedBox(width: 15), // Espace entre logo et texte
-                    const Text('SHADOWLINK', style: TextStyle(color: Colors.cyanAccent, fontSize: 26, fontWeight: FontWeight.bold, letterSpacing: 3)),
+                  children: const [
+                    CircleAvatar(radius: 20, backgroundImage: NetworkImage('https://i.ibb.co/tP5c32d/logo.png'), backgroundColor: Colors.transparent),
+                    SizedBox(width: 15),
+                    Text('SHADOWLINK', style: TextStyle(color: Colors.cyanAccent, fontSize: 22, fontWeight: FontWeight.bold, letterSpacing: 3)),
                   ],
                 ),
               ),
@@ -299,41 +316,36 @@ class _MainScreenState extends State<MainScreen> {
                 padding: EdgeInsets.zero,
                 children: tousLesSalons.map((jeu) => Container(
                   margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: jeu == salonActuel ? Colors.cyanAccent.withOpacity(0.1) : Colors.transparent,
-                    border: Border.all(color: jeu == salonActuel ? Colors.cyanAccent : Colors.transparent),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
+                  decoration: BoxDecoration(color: jeu == salonActuel ? Colors.cyanAccent.withOpacity(0.1) : Colors.transparent, border: Border.all(color: jeu == salonActuel ? Colors.cyanAccent : Colors.transparent), borderRadius: BorderRadius.circular(10)),
                   child: ListTile(
-                    leading: jeu.startsWith("Privé") 
-                        ? const CircleAvatar(backgroundColor: Colors.deepPurple, child: Icon(Icons.lock, color: Colors.white, size: 18))
-                        : CircleAvatar(backgroundImage: NetworkImage(imagesJeux[jeu] ?? imagesJeux["Général"]!), radius: 18),
+                    leading: jeu.startsWith("Privé") ? const CircleAvatar(backgroundColor: Colors.deepPurple, child: Icon(Icons.lock, color: Colors.white, size: 18)) : CircleAvatar(backgroundImage: NetworkImage(imagesJeux[jeu] ?? imagesJeux["Général"]!), radius: 18),
                     title: Text(jeu, style: TextStyle(fontWeight: jeu == salonActuel ? FontWeight.bold : FontWeight.normal, color: jeu == salonActuel ? Colors.cyanAccent : Colors.white70)),
                     onTap: () { setState(() => salonActuel = jeu); Navigator.pop(context); }
                   ),
                 )).toList()
               )
             ),
-            ListTile(leading: const Icon(Icons.settings, color: Colors.grey), title: const Text("Paramètres"), onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const ParametresPage())))
+            // CORRECTION DU BUG DE LA BARRE ANDROID : On protège le bouton paramètres !
+            SafeArea(
+              top: false,
+              bottom: true,
+              child: ListTile(leading: const Icon(Icons.settings, color: Colors.grey), title: const Text("Paramètres"), onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const ParametresPage()))),
+            )
           ],
         ),
       ),
+      // NOUVEAU : LE FOND D'ECRAN EST DYNAMIQUE SELON LE JEU !
       body: Container(
         decoration: BoxDecoration(
           image: DecorationImage(
-            image: const NetworkImage('https://images.unsplash.com/photo-1542751371-adc38448a05e?q=80&w=2070&auto=format&fit=crop'),
+            image: NetworkImage(fondEgal),
             fit: BoxFit.cover,
             colorFilter: ColorFilter.mode(Colors.black.withOpacity(0.85), BlendMode.darken),
           ),
         ),
         child: ChatWidget(nomDuJeu: salonActuel),
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _ecouterAssistant, 
-        backgroundColor: _isListening ? Colors.redAccent : Colors.cyanAccent, 
-        elevation: 10,
-        child: Icon(_isListening ? Icons.mic : Icons.mic_none, color: Colors.black)
-      ),
+      floatingActionButton: FloatingActionButton(onPressed: _ecouterAssistant, backgroundColor: _isListening ? Colors.redAccent : Colors.cyanAccent, elevation: 10, child: Icon(_isListening ? Icons.mic : Icons.mic_none, color: Colors.black)),
     );
   }
 }
@@ -370,11 +382,7 @@ class _ChatWidgetState extends State<ChatWidget> {
                     alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
                     child: Container(
                       margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 8), padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: isMe ? Colors.cyanAccent.withOpacity(0.2) : Colors.white10, 
-                        border: Border.all(color: isMe ? Colors.cyanAccent.withOpacity(0.5) : Colors.transparent),
-                        borderRadius: BorderRadius.circular(15)
-                      ),
+                      decoration: BoxDecoration(color: isMe ? Colors.cyanAccent.withOpacity(0.2) : Colors.white10, border: Border.all(color: isMe ? Colors.cyanAccent.withOpacity(0.5) : Colors.transparent), borderRadius: BorderRadius.circular(15)),
                       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                         if (!isMe) Text(msg['expediteur'] ?? "", style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.cyanAccent, fontSize: 12)),
                         Text(msg['texte'] ?? "", style: const TextStyle(fontSize: 16, color: Colors.white)),
@@ -396,6 +404,7 @@ class NotificationsPage extends StatelessWidget { const NotificationsPage({super
 class FriendsPage extends StatefulWidget { const FriendsPage({super.key}); @override State<FriendsPage> createState() => _FriendsPageState(); }
 class _FriendsPageState extends State<FriendsPage> { @override Widget build(BuildContext context) { return Scaffold(appBar: AppBar(title: const Text("Mes Amis")), body: const Center(child: Text("Amis (Code inchangé)"))); } }
 
+// --- PARAMÈTRES (AVEC SUPPORT & ADMIN) ---
 class ParametresPage extends StatelessWidget {
   const ParametresPage({super.key});
   Future<void> contacterSupport() async {
@@ -410,7 +419,7 @@ class ParametresPage extends StatelessWidget {
         children: [
           const Padding(padding: EdgeInsets.all(16.0), child: Text("AIDE ET MODÉRATION", style: TextStyle(color: Colors.grey, fontWeight: FontWeight.bold))),
           ListTile(leading: const Icon(Icons.bug_report, color: Colors.greenAccent), title: const Text('Signaler un bug / Support technique'), onTap: contacterSupport),
-          ListTile(leading: const Icon(Icons.admin_panel_settings, color: Colors.amberAccent), title: const Text('Contacter un Admin'), subtitle: const Text('Signaler un joueur ou un comportement'), onTap: () { Navigator.pushAndRemoveUntil(context, MaterialPageRoute(builder: (context) => const MainScreen(salonInitial: "Privé : Admin")), (route) => false); }),
+          ListTile(leading: const Icon(Icons.admin_panel_settings, color: Colors.amberAccent), title: const Text('Contacter un Admin'), subtitle: const Text('Signaler un comportement'), onTap: () { Navigator.pushAndRemoveUntil(context, MaterialPageRoute(builder: (context) => const MainScreen(salonInitial: "Privé : Admin")), (route) => false); }),
           const Divider(color: Colors.white24),
           const Padding(padding: EdgeInsets.all(16.0), child: Text("APPLICATION", style: TextStyle(color: Colors.grey, fontWeight: FontWeight.bold))),
           ListTile(leading: const Icon(Icons.system_update, color: Colors.blueAccent), title: const Text('Mise à jour (Nouvel APK)'), onTap: () async { final Uri url = Uri.parse('https://github.com/mrlxniia-tech/ShadowLink/actions'); launchUrl(url, mode: LaunchMode.externalApplication); }),
