@@ -62,9 +62,9 @@ class _LoginPageState extends State<LoginPage> {
           children: [
             const Icon(Icons.gamepad, size: 80, color: Colors.deepPurpleAccent),
             const SizedBox(height: 30),
-            TextField(controller: emailController, decoration: const InputDecoration(labelText: 'Email', border: OutlineInputBorder()), keyboardType: TextInputType.emailAddress),
+            TextField(controller: emailController, decoration: InputDecoration(labelText: 'Email', border: OutlineInputBorder()), keyboardType: TextInputType.emailAddress),
             const SizedBox(height: 16),
-            TextField(controller: passwordController, decoration: const InputDecoration(labelText: 'Mot de passe', border: OutlineInputBorder()), obscureText: true),
+            TextField(controller: passwordController, decoration: InputDecoration(labelText: 'Mot de passe', border: OutlineInputBorder()), obscureText: true),
             const SizedBox(height: 32),
             ElevatedButton(onPressed: seConnecter, style: ElevatedButton.styleFrom(minimumSize: const Size(double.infinity, 50)), child: const Text('Se connecter')),
             TextButton(
@@ -136,11 +136,11 @@ class _RegisterPageState extends State<RegisterPage> {
         padding: const EdgeInsets.all(16.0),
         child: Column(
           children: [
-            TextField(controller: emailController, decoration: const InputDecoration(labelText: 'Email', border: OutlineInputBorder()), keyboardType: TextInputType.emailAddress),
+            TextField(controller: emailController, decoration: InputDecoration(labelText: 'Email', border: OutlineInputBorder()), keyboardType: TextInputType.emailAddress),
             const SizedBox(height: 10),
-            TextField(controller: passwordController, decoration: const InputDecoration(labelText: 'Mot de passe', border: OutlineInputBorder()), obscureText: true),
+            TextField(controller: passwordController, decoration: InputDecoration(labelText: 'Mot de passe', border: OutlineInputBorder()), obscureText: true),
             const SizedBox(height: 10),
-            TextField(controller: pseudoGeneralController, decoration: const InputDecoration(labelText: 'Pseudo Principal', border: OutlineInputBorder())),
+            TextField(controller: pseudoGeneralController, decoration: InputDecoration(labelText: 'Pseudo Principal', border: OutlineInputBorder())),
             const SizedBox(height: 30),
             ...listeJeux.map((jeu) => Column(
               children: [
@@ -388,7 +388,7 @@ class _FriendsPageState extends State<FriendsPage> {
             padding: const EdgeInsets.all(16.0),
             child: Row(
               children: [
-                Expanded(child: TextField(controller: searchController, decoration: const InputDecoration(hintText: "Ajouter un pseudo...", border: OutlineInputBorder()))),
+                Expanded(child: TextField(controller: searchController, decoration: InputDecoration(hintText: "Ajouter un pseudo...", border: OutlineInputBorder()))),
                 const SizedBox(width: 8),
                 ElevatedButton(onPressed: envoyerDemandeAmi, style: ElevatedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 15)), child: const Text("Demander")),
               ],
@@ -524,7 +524,7 @@ class _ChatWidgetState extends State<ChatWidget> {
           padding: const EdgeInsets.all(8.0),
           child: Row(
             children: [
-              Expanded(child: TextField(controller: messageController, decoration: const InputDecoration(hintText: "Message (utilise @Pseudo pour mentionner)...", border: OutlineInputBorder(borderRadius: BorderRadius.circular(25)), contentPadding: const EdgeInsets.symmetric(horizontal: 20)))),
+              Expanded(child: TextField(controller: messageController, decoration: InputDecoration(hintText: "Message (utilise @Pseudo pour mentionner)...", border: OutlineInputBorder(borderRadius: BorderRadius.circular(25)), contentPadding: const EdgeInsets.symmetric(horizontal: 20)))),
               CircleAvatar(backgroundColor: Colors.deepPurpleAccent, child: IconButton(icon: const Icon(Icons.send, color: Colors.white), onPressed: envoyerMessage))
             ],
           ),
