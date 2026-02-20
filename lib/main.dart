@@ -145,7 +145,8 @@ class _RegisterPageState extends State<RegisterPage> {
             const SizedBox(height: 10),
             TextField(controller: pseudoGeneralController, decoration: const InputDecoration(labelText: 'Pseudo Principal', border: OutlineInputBorder())),
             const SizedBox(height: 30),
-            ...listeJeux.map((jeu) => Column(children: [CheckboxListTile(title: Text(jeu), activeColor: Colors.cyanAccent, value: jeuxCoches[jeu], onChanged: (bool? val) => setState(() => jeuxCoches[jeu] = val ?? false)), if (jeuxCoches[jeu] == true) Padding(padding: const EdgeInsets.only(left: 40.0, right: 16.0, bottom: 10.0), child: TextField(controller: pseudosJeux[jeu], decoration: InputDecoration(labelText: 'Pseudo sur $jeu', border: const OutlineInputBorder())))]).toList()),
+            // CORRECTION DE LA PARENTHESE ICI !!!
+            ...listeJeux.map((jeu) => Column(children: [CheckboxListTile(title: Text(jeu), activeColor: Colors.cyanAccent, value: jeuxCoches[jeu], onChanged: (bool? val) => setState(() => jeuxCoches[jeu] = val ?? false)), if (jeuxCoches[jeu] == true) Padding(padding: const EdgeInsets.only(left: 40.0, right: 16.0, bottom: 10.0), child: TextField(controller: pseudosJeux[jeu], decoration: InputDecoration(labelText: 'Pseudo sur $jeu', border: const OutlineInputBorder())))])).toList(),
             const SizedBox(height: 20),
             ElevatedButton(onPressed: creerCompte, style: ElevatedButton.styleFrom(backgroundColor: Colors.cyanAccent, minimumSize: const Size(double.infinity, 50)), child: const Text('VALIDER', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold))),
           ],
@@ -169,7 +170,7 @@ class _MainScreenState extends State<MainScreen> {
   
   final Map<String, String> fondsEcrans = {
     "Général": "https://images.unsplash.com/photo-1542751371-adc38448a05e?q=80&w=1080",
-    "Call of Duty": "https://images.unsplash.com/photo-1506469717960-433cebe3f181?q=80&w=1080", // Soldat / Militaire plus clair
+    "Call of Duty": "https://images.unsplash.com/photo-1506469717960-433cebe3f181?q=80&w=1080", 
     "Minecraft": "https://images.unsplash.com/photo-1607513746994-51f730a44832?q=80&w=1080", 
     "Roblox": "https://images.unsplash.com/photo-1610041321420-a596dd14ebc9?q=80&w=1080", 
     "Fortnite": "https://images.unsplash.com/photo-1589241062272-c0a000072dfa?q=80&w=1080", 
@@ -250,11 +251,9 @@ class _MainScreenState extends State<MainScreen> {
           image: DecorationImage(
             image: NetworkImage(fondEgal),
             fit: BoxFit.cover,
-            // OPACITÉ RÉDUITE POUR MIEUX VOIR L'IMAGE !
             colorFilter: ColorFilter.mode(Colors.black.withOpacity(0.5), BlendMode.darken),
           ),
         ),
-        // On passe une fonction au ChatWidget pour qu'il puisse changer le salon si la commande vocale le demande
         child: ChatWidget(nomDuJeu: salonActuel, onChangeSalon: (nouveauSalon) {
           setState(() { salonActuel = nouveauSalon; if (!tousLesSalons.contains(salonActuel)) tousLesSalons.add(salonActuel); });
         }),
@@ -263,7 +262,7 @@ class _MainScreenState extends State<MainScreen> {
   }
 }
 
-// --- WIDGET CHAT (AVEC MICROPHONE INTÉGRÉ ET SUPPRESSION) ---
+// --- WIDGET CHAT ---
 class ChatWidget extends StatefulWidget { 
   final String nomDuJeu; 
   final Function(String) onChangeSalon;
@@ -274,7 +273,6 @@ class ChatWidget extends StatefulWidget {
 class _ChatWidgetState extends State<ChatWidget> {
   final TextEditingController messageController = TextEditingController();
   
-  // Assistant Vocal
   late stt.SpeechToText _speech;
   bool _isListening = false;
 
@@ -303,7 +301,7 @@ class _ChatWidgetState extends State<ChatWidget> {
               if (mots.length > 1) {
                 String pseudoJoueur = mots.last.trim();
                 _speech.stop(); setState(() => _isListening = false);
-                widget.onChangeSalon("Privé : $pseudoJoueur"); // Téléportation magique
+                widget.onChangeSalon("Privé : $pseudoJoueur"); 
               }
             }
           },
@@ -324,7 +322,6 @@ class _ChatWidgetState extends State<ChatWidget> {
     messageController.clear();
   }
 
-  // NOUVEAU: SUPPRESSION DE SES PROPRES MESSAGES (Façon Discord)
   void confirmerSuppression(String messageId) {
     showDialog(context: context, builder: (context) => AlertDialog(
       title: const Text("Supprimer le message ?"),
@@ -357,7 +354,7 @@ class _ChatWidgetState extends State<ChatWidget> {
                   return Align(
                     alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
                     child: GestureDetector(
-                      onLongPress: isMe ? () => confirmerSuppression(msgDoc.id) : null, // CLIC LONG POUR SUPPRIMER
+                      onLongPress: isMe ? () => confirmerSuppression(msgDoc.id) : null,
                       child: Container(
                         margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 8), padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(color: isMe ? Colors.cyanAccent.withOpacity(0.2) : Colors.black87, border: Border.all(color: isMe ? Colors.cyanAccent.withOpacity(0.5) : Colors.transparent), borderRadius: BorderRadius.circular(15)),
@@ -381,7 +378,6 @@ class _ChatWidgetState extends State<ChatWidget> {
               children: [ 
                 Expanded(child: TextField(controller: messageController, decoration: InputDecoration(hintText: "Message...", filled: true, fillColor: Colors.black87, border: OutlineInputBorder(borderRadius: BorderRadius.circular(25), borderSide: BorderSide.none)))), 
                 const SizedBox(width: 8), 
-                // BOUTON MICROPHONE REPOSITIONNÉ ICI !
                 CircleAvatar(backgroundColor: _isListening ? Colors.redAccent : Colors.black54, child: IconButton(icon: Icon(_isListening ? Icons.mic : Icons.mic_none, color: Colors.white), onPressed: _ecouterAssistant)),
                 const SizedBox(width: 8), 
                 CircleAvatar(backgroundColor: Colors.cyanAccent, child: IconButton(icon: const Icon(Icons.send, color: Colors.black), onPressed: envoyerMessage)) 
@@ -394,7 +390,7 @@ class _ChatWidgetState extends State<ChatWidget> {
   }
 }
 
-// --- PAGE DES AMIS (TOTALEMENT RESTAURÉE) ---
+// --- PAGE DES AMIS ---
 class FriendsPage extends StatefulWidget { const FriendsPage({super.key}); @override State<FriendsPage> createState() => _FriendsPageState(); }
 class _FriendsPageState extends State<FriendsPage> {
   final TextEditingController searchController = TextEditingController();
@@ -439,7 +435,7 @@ class _FriendsPageState extends State<FriendsPage> {
                     return ListTile(
                       leading: const CircleAvatar(backgroundColor: Colors.cyanAccent, child: Icon(Icons.person, color: Colors.black)),
                       title: Text(mesAmis[index], style: const TextStyle(fontWeight: FontWeight.bold)),
-                      subtitle: const Text("🟢 En ligne", style: TextStyle(color: Colors.greenAccent, fontSize: 12)), // DISCORD STYLE
+                      subtitle: const Text("🟢 En ligne", style: TextStyle(color: Colors.greenAccent, fontSize: 12)),
                       trailing: const Icon(Icons.chat_bubble, color: Colors.grey),
                       onTap: () => Navigator.pushAndRemoveUntil(context, MaterialPageRoute(builder: (context) => MainScreen(salonInitial: "Privé : ${mesAmis[index]}")), (route) => false),
                     );
@@ -454,7 +450,7 @@ class _FriendsPageState extends State<FriendsPage> {
   }
 }
 
-// --- PAGE DES NOTIFICATIONS (TOTALEMENT RESTAURÉE) ---
+// --- PAGE DES NOTIFICATIONS ---
 class NotificationsPage extends StatelessWidget {
   const NotificationsPage({super.key});
   Future<void> accepterAmi(String myUid, String notifId, String uidDemandeur, String pseudoDemandeur) async {
@@ -519,7 +515,6 @@ class _ParametresPageState extends State<ParametresPage> {
 
           return ListView(
             children: [
-              // NOUVEAU: SECTION PROFIL
               Container(
                 color: Colors.black26, padding: const EdgeInsets.all(20),
                 child: Column(
