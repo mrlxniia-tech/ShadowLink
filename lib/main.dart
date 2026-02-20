@@ -32,26 +32,45 @@ class _LoginPageState extends State<LoginPage> {
   final TextEditingController emailController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
 
+  // Fonction pour SE CONNECTER
   Future<void> seConnecter() async {
     try {
-      // 1. Tente de connecter l'utilisateur via Firebase
       await FirebaseAuth.instance.signInWithEmailAndPassword(
         email: emailController.text.trim(),
         password: passwordController.text.trim(),
       );
-
-      // 2. Si succès, on change de page vers la page d'accueil
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (context) => const HomePage()),
       );
     } on FirebaseAuthException catch (e) {
-      // 3. En cas d'erreur (mauvais mdp, etc.), on affiche un message rouge
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text("Erreur : ${e.message}"), 
-          backgroundColor: Colors.red
-        ),
+        SnackBar(content: Text("Erreur de connexion : ${e.message}"), backgroundColor: Colors.red),
+      );
+    }
+  }
+
+  // Fonction pour S'INSCRIRE
+  Future<void> sInscrire() async {
+    try {
+      // Demande à Firebase de créer le compte
+      await FirebaseAuth.instance.createUserWithEmailAndPassword(
+        email: emailController.text.trim(),
+        password: passwordController.text.trim(),
+      );
+      
+      // Si ça marche, on bascule directement sur l'accueil
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const HomePage()),
+      );
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Compte créé avec succès ! 🚀"), backgroundColor: Colors.green),
+      );
+    } on FirebaseAuthException catch (e) {
+      // Si le mot de passe est trop court ou l'email déjà pris
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Erreur d'inscription : ${e.message}"), backgroundColor: Colors.orange),
       );
     }
   }
@@ -59,7 +78,7 @@ class _LoginPageState extends State<LoginPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Connexion ShadowLink')),
+      appBar: AppBar(title: const Text('Bienvenue sur ShadowLink')),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
@@ -77,18 +96,28 @@ class _LoginPageState extends State<LoginPage> {
             TextField(
               controller: passwordController,
               decoration: const InputDecoration(
-                labelText: 'Mot de passe',
+                labelText: 'Mot de passe (6 caractères min.)',
                 border: OutlineInputBorder(),
               ),
-              obscureText: true, // Cache le mot de passe
+              obscureText: true,
             ),
             const SizedBox(height: 32),
             ElevatedButton(
               onPressed: seConnecter,
               style: ElevatedButton.styleFrom(
                 padding: const EdgeInsets.symmetric(horizontal: 50, vertical: 15),
+                minimumSize: const Size(double.infinity, 50), // Bouton large
               ),
               child: const Text('Se connecter', style: TextStyle(fontSize: 18)),
+            ),
+            const SizedBox(height: 16),
+            // LE NOUVEAU BOUTON INSCRIPTION
+            TextButton(
+              onPressed: sInscrire,
+              child: const Text(
+                "Pas encore de compte ? S'inscrire", 
+                style: TextStyle(fontSize: 16, color: Colors.blueGrey)
+              ),
             ),
           ],
         ),
@@ -108,14 +137,10 @@ class HomePage extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Text(
-              'Connexion réussie ! 🚀', 
-              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)
-            ),
+            const Text('Connexion réussie ! 🚀', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
             const SizedBox(height: 40),
             ElevatedButton(
               onPressed: () async {
-                // Bouton pour se déconnecter et revenir en arrière
                 await FirebaseAuth.instance.signOut();
                 Navigator.pushReplacement(
                   context,
