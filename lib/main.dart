@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:url_launcher/url_launcher.dart'; // Nouvel outil pour les liens
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -16,11 +17,13 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'ShadowLink',
       theme: ThemeData(primarySwatch: Colors.blue),
-      home: const LoginPage(),
+      // Si l'utilisateur est déjà connecté, on l'envoie direct à l'accueil !
+      home: FirebaseAuth.instance.currentUser == null ? const LoginPage() : const HomePage(),
     );
   }
 }
 
+// --- PAGE DE CONNEXION ---
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
 
@@ -32,46 +35,28 @@ class _LoginPageState extends State<LoginPage> {
   final TextEditingController emailController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
 
-  // Fonction pour SE CONNECTER
   Future<void> seConnecter() async {
     try {
       await FirebaseAuth.instance.signInWithEmailAndPassword(
         email: emailController.text.trim(),
         password: passwordController.text.trim(),
       );
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => const HomePage()),
-      );
+      Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const HomePage()));
     } on FirebaseAuthException catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Erreur de connexion : ${e.message}"), backgroundColor: Colors.red),
-      );
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Erreur: ${e.message}"), backgroundColor: Colors.red));
     }
   }
 
-  // Fonction pour S'INSCRIRE
   Future<void> sInscrire() async {
     try {
-      // Demande à Firebase de créer le compte
       await FirebaseAuth.instance.createUserWithEmailAndPassword(
         email: emailController.text.trim(),
         password: passwordController.text.trim(),
       );
-      
-      // Si ça marche, on bascule directement sur l'accueil
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => const HomePage()),
-      );
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Compte créé avec succès ! 🚀"), backgroundColor: Colors.green),
-      );
+      Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const HomePage()));
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Compte créé ! 🚀"), backgroundColor: Colors.green));
     } on FirebaseAuthException catch (e) {
-      // Si le mot de passe est trop court ou l'email déjà pris
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Erreur d'inscription : ${e.message}"), backgroundColor: Colors.orange),
-      );
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Erreur: ${e.message}"), backgroundColor: Colors.orange));
     }
   }
 
@@ -84,41 +69,13 @@ class _LoginPageState extends State<LoginPage> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            TextField(
-              controller: emailController,
-              decoration: const InputDecoration(
-                labelText: 'Email',
-                border: OutlineInputBorder(),
-              ),
-              keyboardType: TextInputType.emailAddress,
-            ),
+            TextField(controller: emailController, decoration: const InputDecoration(labelText: 'Email', border: OutlineInputBorder()), keyboardType: TextInputType.emailAddress),
             const SizedBox(height: 16),
-            TextField(
-              controller: passwordController,
-              decoration: const InputDecoration(
-                labelText: 'Mot de passe (6 caractères min.)',
-                border: OutlineInputBorder(),
-              ),
-              obscureText: true,
-            ),
+            TextField(controller: passwordController, decoration: const InputDecoration(labelText: 'Mot de passe', border: OutlineInputBorder()), obscureText: true),
             const SizedBox(height: 32),
-            ElevatedButton(
-              onPressed: seConnecter,
-              style: ElevatedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(horizontal: 50, vertical: 15),
-                minimumSize: const Size(double.infinity, 50), // Bouton large
-              ),
-              child: const Text('Se connecter', style: TextStyle(fontSize: 18)),
-            ),
+            ElevatedButton(onPressed: seConnecter, style: ElevatedButton.styleFrom(minimumSize: const Size(double.infinity, 50)), child: const Text('Se connecter', style: TextStyle(fontSize: 18))),
             const SizedBox(height: 16),
-            // LE NOUVEAU BOUTON INSCRIPTION
-            TextButton(
-              onPressed: sInscrire,
-              child: const Text(
-                "Pas encore de compte ? S'inscrire", 
-                style: TextStyle(fontSize: 16, color: Colors.blueGrey)
-              ),
-            ),
+            TextButton(onPressed: sInscrire, child: const Text("Pas encore de compte ? S'inscrire", style: TextStyle(color: Colors.blueGrey))),
           ],
         ),
       ),
@@ -126,32 +83,69 @@ class _LoginPageState extends State<LoginPage> {
   }
 }
 
+// --- PAGE D'ACCUEIL ---
 class HomePage extends StatelessWidget {
   const HomePage({super.key});
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Accueil ShadowLink')),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Text('Connexion réussie ! 🚀', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 40),
-            ElevatedButton(
-              onPressed: () async {
-                await FirebaseAuth.instance.signOut();
-                Navigator.pushReplacement(
-                  context,
-                  MaterialPageRoute(builder: (context) => const LoginPage()),
-                );
-              },
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-              child: const Text('Se déconnecter', style: TextStyle(color: Colors.white)),
-            )
-          ],
-        ),
+      appBar: AppBar(
+        title: const Text('Accueil ShadowLink'),
+        actions: [
+          // NOUVEAU : Le bouton Paramètres en haut à droite
+          IconButton(
+            icon: const Icon(Icons.settings),
+            onPressed: () {
+              Navigator.push(context, MaterialPageRoute(builder: (context) => const ParametresPage()));
+            },
+          )
+        ],
+      ),
+      body: const Center(
+        child: Text('Bienvenue dans ton espace ! 🚀', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+      ),
+    );
+  }
+}
+
+// --- PAGE DES PARAMÈTRES ---
+class ParametresPage extends StatelessWidget {
+  const ParametresPage({super.key});
+
+  // Fonction qui va ouvrir le navigateur pour télécharger la MAJ
+  Future<void> ouvrirLienMiseAJour(BuildContext context) async {
+    // Remplacer ce lien par le lien direct de ton APK plus tard
+    final Uri url = Uri.parse('https://github.com/mrlxniia-tech/ShadowLink/actions'); 
+    
+    if (!await launchUrl(url, mode: LaunchMode.externalApplication)) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Impossible d'ouvrir le lien"), backgroundColor: Colors.red));
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Paramètres')),
+      body: ListView(
+        children: [
+          ListTile(
+            leading: const Icon(Icons.system_update, color: Colors.blue),
+            title: const Text('Mise à jour'),
+            subtitle: const Text('Télécharger la dernière version (APK)'),
+            onTap: () => ouvrirLienMiseAJour(context),
+          ),
+          const Divider(),
+          ListTile(
+            leading: const Icon(Icons.logout, color: Colors.red),
+            title: const Text('Se déconnecter', style: TextStyle(color: Colors.red)),
+            onTap: () async {
+              await FirebaseAuth.instance.signOut();
+              // Retour à la page de connexion en supprimant l'historique des pages
+              Navigator.pushAndRemoveUntil(context, MaterialPageRoute(builder: (context) => const LoginPage()), (route) => false);
+            },
+          ),
+        ],
       ),
     );
   }
