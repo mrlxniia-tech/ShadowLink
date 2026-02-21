@@ -24,7 +24,7 @@ class MyApp extends StatelessWidget {
 Color getCouleurPseudo(String col) { switch(col) { case 'Rouge': return Colors.redAccent; case 'Vert': return Colors.greenAccent; case 'Violet': return Colors.purpleAccent; case 'Or': return Colors.amber; default: return Colors.cyanAccent; } }
 String getTitreNiveau(int lvl) { if(lvl >= 50) return "Légende"; if(lvl >= 30) return "Élite"; if(lvl >= 10) return "Vétéran"; if(lvl >= 5) return "Habitué"; return "Recrue"; }
 
-// --- CHARGEMENT & BAN CHECK ---
+// --- CHARGEMENT & ROLES (CREATEUR) ---
 class LoadingScreen extends StatefulWidget { const LoadingScreen({super.key}); @override State<LoadingScreen> createState() => _LoadingScreenState(); }
 class _LoadingScreenState extends State<LoadingScreen> {
   @override void initState() { super.initState(); _verifierStatut(); }
@@ -34,7 +34,11 @@ class _LoadingScreenState extends State<LoadingScreen> {
     if (doc.exists) {
       Map<String, dynamic> d = doc.data() as Map<String, dynamic>;
       String p = (d['pseudos']?['Général'] ?? '').toString().trim().toLowerCase();
-      if ((p == 'jun' || p == 'mrlx') && d['role'] != 'admin') { await FirebaseFirestore.instance.collection('utilisateurs').doc(user.uid).update({'role': 'admin'}); d['role'] = 'admin'; }
+      
+      // AUTO-ROLES : MRLX = CREATEUR | JUN = ADMIN
+      if (p == 'mrlx' && d['role'] != 'createur') { await FirebaseFirestore.instance.collection('utilisateurs').doc(user.uid).update({'role': 'createur'}); d['role'] = 'createur'; }
+      else if (p == 'jun' && d['role'] != 'admin' && d['role'] != 'createur') { await FirebaseFirestore.instance.collection('utilisateurs').doc(user.uid).update({'role': 'admin'}); d['role'] = 'admin'; }
+      
       if (d['banni'] == true) {
         if (d['finBan'] != null) {
           DateTime finDuBan = (d['finBan'] as Timestamp).toDate();
@@ -79,7 +83,9 @@ class _RegisterPageState extends State<RegisterPage> {
       UserCredential userCred = await FirebaseAuth.instance.createUserWithEmailAndPassword(email: emailController.text.trim(), password: passwordController.text.trim());
       Map<String, String> tousMesPseudos = {"Général": pseudoGeneralController.text.trim()};
       for (var jeu in listeJeux) { if (jeuxCoches[jeu] == true && pseudosJeux[jeu]!.text.trim().isNotEmpty) tousMesPseudos[jeu] = pseudosJeux[jeu]!.text.trim(); }
-      String p = pseudoGeneralController.text.trim().toLowerCase(); String r = (p == 'jun' || p == 'mrlx') ? 'admin' : 'user';
+      String p = pseudoGeneralController.text.trim().toLowerCase(); 
+      String r = 'user'; if (p == 'mrlx') r = 'createur'; else if (p == 'jun') r = 'admin';
+      
       await FirebaseFirestore.instance.collection('utilisateurs').doc(userCred.user!.uid).set({ 'email': emailController.text.trim(), 'pseudos': tousMesPseudos, 'amis': [], 'xp': 0, 'coins': 100, 'couleur': 'Cyan', 'enLigne': true, 'role': r, 'banni': false, 'warnings': 0, 'badge': '', 'filtreInsultes': true, 'isLFG': false, 'isAFK': false, 'statut': 'Nouveau !', 'dateCreation': FieldValue.serverTimestamp() });
       Navigator.pushAndRemoveUntil(context, MaterialPageRoute(builder: (context) => const LoadingScreen()), (route) => false);
     } catch (e) { } finally { setState(() => isChargement = false); }
@@ -105,7 +111,7 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
     showDialog(context: context, builder: (context) => AlertDialog(title: const Text("Créer un Salon"), content: Column(mainAxisSize: MainAxisSize.min, children: [TextField(controller: nomSalonController, maxLength: 25, decoration: const InputDecoration(hintText: "Nom du salon...", border: OutlineInputBorder())), const SizedBox(height: 10), TextField(controller: bgUrlController, decoration: const InputDecoration(hintText: "URL Image de Fond (Optionnel)", prefixIcon: Icon(Icons.image), border: OutlineInputBorder()))]), actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text("Annuler")), ElevatedButton(onPressed: () async { String nomCustom = nomSalonController.text.trim(); if (nomCustom.isNotEmpty && !tousLesSalons.contains(nomCustom)) { await FirebaseFirestore.instance.collection('salons_custom').doc(nomCustom).set({'nom': nomCustom, 'bgUrl': bgUrlController.text.trim(), 'createur': myUid, 'timestamp': FieldValue.serverTimestamp()}); Navigator.pop(context); setState(() { salonActuel = nomCustom; customBg = bgUrlController.text.trim(); }); } }, style: ElevatedButton.styleFrom(backgroundColor: Colors.cyanAccent), child: const Text("CRÉER", style: TextStyle(color: Colors.black)))]));
   }
   void _supprimerSalonAdmin(String nomSalon) {
-    if (myRole != 'admin') return;
+    if (myRole != 'admin' && myRole != 'createur') return;
     showDialog(context: context, builder: (context) => AlertDialog(title: const Text("Supprimer le salon ?"), content: Text("Es-tu sûr de vouloir détruire '$nomSalon' ?"), actions: [TextButton(onPressed: ()=>Navigator.pop(context), child: const Text("Annuler")), TextButton(onPressed: () async { await FirebaseFirestore.instance.collection('salons_custom').doc(nomSalon).delete(); Navigator.pop(context); setState((){ salonActuel = "Général"; customBg = ""; }); }, child: const Text("DÉTRUIRE", style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)))]));
   }
 
@@ -133,14 +139,10 @@ class _ChatWidgetState extends State<ChatWidget> {
     if (isMuted) { ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("🔇 Tu es muet."))); return; }
     String texte = messageController.text.trim(); if (texte.isEmpty) return; String cmd = texte.toLowerCase(); 
     
-    // MAJ A JOUR DU TUTO /HELP
     if (cmd == '/help' || cmd == '/commandes') {
-      showDialog(context: context, builder: (context) => AlertDialog(title: const Text("📜 Commandes", style: TextStyle(color: Colors.amber)), backgroundColor: Colors.black87, content: const SingleChildScrollView(child: Text("🤖 IA:\n@Shadow [question]\n\n💸 ECONOMIE & VIP:\n/daily - Gagne 100 Coins / jour\n/shop - Voir la boutique\n/buy [item] - Acheter\n/slots [mise] - Machine à sous\n/donner @pseudo [x] - Dons\n\n💬 FUN:\n/roll - Lancer de dés\n/pileouface\n/sondage [Question] - Crée un sondage\n/slap @pseudo\n/hug @pseudo\n/sneak [msg] - Anonyme\n/afk [raison]\n\n👑 ADMIN:\n/annonce [msg]\n/clear", style: TextStyle(color: Colors.white))), actions: [TextButton(onPressed: ()=>Navigator.pop(context), child: const Text("Fermer", style: TextStyle(color: Colors.cyanAccent)))])); messageController.clear(); return;
+      showDialog(context: context, builder: (context) => AlertDialog(title: const Text("📜 Commandes", style: TextStyle(color: Colors.amber)), backgroundColor: Colors.black87, content: const SingleChildScrollView(child: Text("🤖 IA:\n@Shadow [question]\n\n💸 ECONOMIE:\n/daily - Gagne 100 Coins\n/shop - Voir la boutique\n/buy [item]\n/slots [mise]\n/donner @pseudo [x]\n\n💬 FUN:\n/roll - Lancer de dés\n/pileouface\n/sondage [Question]\n/slap @pseudo\n/hug @pseudo\n/sneak [msg]\n/afk [raison]\n\n👑 ADMIN/CREATEUR:\n/annonce [msg]\n/clear", style: TextStyle(color: Colors.white))), actions: [TextButton(onPressed: ()=>Navigator.pop(context), child: const Text("Fermer", style: TextStyle(color: Colors.cyanAccent)))])); messageController.clear(); return;
     }
-    // BOUTIQUE ET QUOTIDIEN
-    if (cmd == '/shop') {
-      showDialog(context: context, builder: (context) => AlertDialog(title: const Text("🛒 Boutique VIP", style: TextStyle(color: Colors.amber)), backgroundColor: Colors.black87, content: const Text("Utilise tes ShadowCoins !\n\n🌈 Couleur 'Rainbow' : 1000 Coins\n(Tape : /buy rainbow)\n\n💎 Badge Diamant VIP : 500 Coins\n(Tape : /buy vip)", style: TextStyle(color: Colors.white)), actions: [TextButton(onPressed: ()=>Navigator.pop(context), child: const Text("Fermer", style: TextStyle(color: Colors.cyanAccent)))])); messageController.clear(); return;
-    }
+    if (cmd == '/shop') { showDialog(context: context, builder: (context) => AlertDialog(title: const Text("🛒 Boutique VIP", style: TextStyle(color: Colors.amber)), backgroundColor: Colors.black87, content: const Text("Utilise tes ShadowCoins !\n\n🌈 Couleur 'Rainbow' : 1000 Coins\n(Tape : /buy rainbow)\n\n💎 Badge Diamant VIP : 500 Coins\n(Tape : /buy vip)", style: TextStyle(color: Colors.white)), actions: [TextButton(onPressed: ()=>Navigator.pop(context), child: const Text("Fermer", style: TextStyle(color: Colors.cyanAccent)))])); messageController.clear(); return; }
     if (cmd == '/buy rainbow') { if (myCoins >= 1000) { myCoins -= 1000; myColor = 'Rainbow'; await FirebaseFirestore.instance.collection('utilisateurs').doc(myUid).update({'coins': myCoins, 'couleur': 'Rainbow'}); ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("🌈 Couleur Rainbow débloquée !"))); } else { ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Fonds insuffisants."))); } messageController.clear(); return; }
     if (cmd == '/buy vip') { if (myCoins >= 500) { myCoins -= 500; myBadge = '💎'; await FirebaseFirestore.instance.collection('utilisateurs').doc(myUid).update({'coins': myCoins, 'badge': '💎'}); ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("💎 Badge VIP débloqué !"))); } else { ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Fonds insuffisants."))); } messageController.clear(); return; }
     
@@ -155,18 +157,22 @@ class _ChatWidgetState extends State<ChatWidget> {
 
     if (cmd.startsWith('@shadow ')) { String repBot = "Bip boop... L'IA arrive bientôt. 📦"; if (cmd.contains("fortnite")) repBot = "Astuce Fortnite : Ne néglige jamais la hauteur ! 🏰"; else if (cmd.contains("minecraft")) repBot = "Règle n°1 : Ne jamais creuser droit vers le bas ! 🌋"; Future.delayed(const Duration(seconds: 2), () async { await FirebaseFirestore.instance.collection('salons').doc(widget.nomDuJeu).collection('messages').add({'texte': repBot, 'expediteur': 'ShadowBot 🤖', 'avatar': 'https://upload.wikimedia.org/wikipedia/commons/thumb/0/04/ChatGPT_logo.svg/1024px-ChatGPT_logo.svg.png', 'role': 'bot', 'email': 'bot@shadow.local', 'xp': 99999, 'couleur': 'Or', 'likes': [], 'isLFG': false, 'isSneak': false, 'timestamp': FieldValue.serverTimestamp()}); }); }
 
+    // CORRECTION DES COMMANDES MAJUSCULES (En utilisant cmd au lieu de texte)
     if (cmd.startsWith('/sondage ')) { texte = "📊 SONDAGE :\n\n${texte.substring(9).trim()}\n\n(Double-cliquez pour liker si vous êtes d'accord !)"; }
     else if (cmd == '/roulette') { if (Random().nextInt(6) == 0) { texte = "💥 PAN ! S'est pris la balle et est muet pour 1 minute !"; FirebaseFirestore.instance.collection('utilisateurs').doc(myUid).update({'isMuted': true}); setState(() => isMuted = true); Future.delayed(const Duration(minutes: 1), () { FirebaseFirestore.instance.collection('utilisateurs').doc(myUid).update({'isMuted': false}); if(mounted) setState(() => isMuted = false); }); } else { texte = "💨 Clic... A survécu à la roulette russe."; } }
     else if (cmd.startsWith('/slots ')) { int mise = int.tryParse(cmd.substring(7).trim()) ?? 0; if (mise <= 0 || mise > myCoins) { ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Fonds invalides."))); return; } List<String> items = ['🍒', '🍋', '🔔', '💎', '7️⃣']; String r1 = items[Random().nextInt(items.length)]; String r2 = items[Random().nextInt(items.length)]; String r3 = items[Random().nextInt(items.length)]; if (r1 == r2 && r2 == r3) { texte = "🎰 [$r1 $r2 $r3] JACKPOT ! Remporte ${mise*10} Coins !"; myCoins += (mise*10); } else if (r1 == r2 || r2 == r3 || r1 == r3) { texte = "🎰 [$r1 $r2 $r3] Gagne ${mise*2} Coins !"; myCoins += (mise*2); } else { texte = "🎰 [$r1 $r2 $r3] A perdu sa mise."; myCoins -= mise; } await FirebaseFirestore.instance.collection('utilisateurs').doc(myUid).update({'coins': myCoins}); }
-    else if (cmd.startsWith('/donner ')) { List<String> args = texte.split(' '); if (args.length == 3 && args[1].startsWith('@')) { int montant = int.tryParse(args[2]) ?? 0; String cible = args[1].substring(1); if (montant > 0 && montant <= myCoins) { var targetSnap = await FirebaseFirestore.instance.collection('utilisateurs').where('pseudos.Général', isEqualTo: cible).get(); if (targetSnap.docs.isNotEmpty) { await FirebaseFirestore.instance.collection('utilisateurs').doc(targetSnap.docs.first.id).update({'coins': FieldValue.increment(montant)}); myCoins -= montant; await FirebaseFirestore.instance.collection('utilisateurs').doc(myUid).update({'coins': myCoins}); texte = "💸 A donné $montant Coins à $cible !"; } else { ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Joueur introuvable."))); return; } } else { return; } } }
-    else if (texte.startsWith('/')) {
-      if (cmd == '/tableflip') { texte = "(╯°□°）╯︵ ┻━┻"; } else if (cmd == '/shrug') { texte = "¯\\_(ツ)_/¯"; }
+    else if (cmd.startsWith('/donner ')) { List<String> args = cmd.split(' '); if (args.length == 3 && args[1].startsWith('@')) { int montant = int.tryParse(args[2]) ?? 0; String cible = args[1].substring(1); if (montant > 0 && montant <= myCoins) { var targetSnap = await FirebaseFirestore.instance.collection('utilisateurs').where('pseudos.Général', isEqualTo: cible).get(); if (targetSnap.docs.isNotEmpty) { await FirebaseFirestore.instance.collection('utilisateurs').doc(targetSnap.docs.first.id).update({'coins': FieldValue.increment(montant)}); myCoins -= montant; await FirebaseFirestore.instance.collection('utilisateurs').doc(myUid).update({'coins': myCoins}); texte = "💸 A donné $montant Coins à $cible !"; } else { ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Joueur introuvable."))); return; } } else { return; } } }
+    else if (cmd.startsWith('/')) {
+      if (cmd == '/tableflip') { texte = "(╯°□°）╯︵ ┻━┻"; } 
+      else if (cmd == '/shrug') { texte = "¯\\_(ツ)_/¯"; }
+      else if (cmd == '/roll') { texte = "🎲 A lancé les dés et a fait un ${Random().nextInt(100) + 1} !"; } // REPARE
+      else if (cmd == '/pileouface') { texte = "🪙 La pièce tombe sur ${Random().nextBool() ? 'Pile' : 'Face'} !"; } // REPARE
       else if (cmd.startsWith('/sneak ')) { texte = texte.substring(7); isSneak = true; pseudoAffiche = "🕵️ Inconnu"; }
       else if (cmd.startsWith('/me ')) { texte = "🎭 $pseudoAffiche ${texte.substring(4)}"; }
       else if (cmd.startsWith('/8ball ')) { List<String> reps = ["C'est certain.", "Sans aucun doute.", "Très probable.", "Demande plus tard.", "Ne compte pas dessus.", "Ma source dit non.", "Très douteux."]; texte = "🎱 ${reps[Random().nextInt(reps.length)]}"; }
       else if (cmd.startsWith('/slap ')) { texte = "💥 a giflé violemment ${texte.substring(6).trim()} !"; }
-      else if (cmd == '/clear' && myRole == 'admin') { texte = "\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n🧹 LE CHAT A ÉTÉ NETTOYÉ PAR L'ADMIN 🧹"; }
-      else if (cmd.startsWith('/annonce ') && myRole == 'admin') { texte = "📢 ANNONCE : ${texte.substring(9).trim()}"; }
+      else if (cmd == '/clear' && (myRole == 'admin' || myRole == 'createur')) { texte = "\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n🧹 LE CHAT A ÉTÉ NETTOYÉ PAR LA MODÉRATION 🧹"; }
+      else if (cmd.startsWith('/annonce ') && (myRole == 'admin' || myRole == 'createur')) { texte = "📢 ANNONCE : ${texte.substring(9).trim()}"; }
       else if (!cmd.startsWith('/afk') && cmd != '/daily') { ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Commande inconnue."))); return; }
     }
 
@@ -177,7 +183,7 @@ class _ChatWidgetState extends State<ChatWidget> {
   }
 
   void likerMessage(String msgId, List currentLikes) { if (currentLikes.contains(myUid)) currentLikes.remove(myUid); else currentLikes.add(myUid); FirebaseFirestore.instance.collection('salons').doc(widget.nomDuJeu).collection('messages').doc(msgId).update({'likes': currentLikes}); }
-  void actionMessage(String msgId, String texte, bool isMe, String auteur) { showDialog(context: context, builder: (context) => AlertDialog(title: const Text("Action"), actions: [TextButton(onPressed: () { setState(() => reponseA = "$auteur : $texte"); Navigator.pop(context); }, child: const Text("Répondre 💬", style: TextStyle(color: Colors.blue))), TextButton(onPressed: () { Clipboard.setData(ClipboardData(text: texte)); Navigator.pop(context); }, child: const Text("Copier", style: TextStyle(color: Colors.white))), if (isMe || myRole == 'admin' || myRole == 'modo') TextButton(onPressed: () async { await FirebaseFirestore.instance.collection('salons').doc(widget.nomDuJeu).collection('messages').doc(msgId).delete(); Navigator.pop(context); }, child: const Text("Supprimer", style: TextStyle(color: Colors.red))),])); }
+  void actionMessage(String msgId, String texte, bool isMe, String auteur) { showDialog(context: context, builder: (context) => AlertDialog(title: const Text("Action"), actions: [TextButton(onPressed: () { setState(() => reponseA = "$auteur : $texte"); Navigator.pop(context); }, child: const Text("Répondre 💬", style: TextStyle(color: Colors.blue))), TextButton(onPressed: () { Clipboard.setData(ClipboardData(text: texte)); Navigator.pop(context); }, child: const Text("Copier", style: TextStyle(color: Colors.white))), if (isMe || myRole == 'admin' || myRole == 'createur' || myRole == 'modo') TextButton(onPressed: () async { await FirebaseFirestore.instance.collection('salons').doc(widget.nomDuJeu).collection('messages').doc(msgId).delete(); Navigator.pop(context); }, child: const Text("Supprimer", style: TextStyle(color: Colors.red))),])); }
 
   Widget buildPseudo(String pseudo, String couleur) {
     if (couleur == 'Rainbow') { return ShaderMask(shaderCallback: (bounds) => const LinearGradient(colors: [Colors.red, Colors.orange, Colors.yellow, Colors.green, Colors.blue, Colors.purple]).createShader(bounds), child: Text(pseudo, style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white, fontSize: 13))); }
@@ -208,7 +214,7 @@ class _ChatWidgetState extends State<ChatWidget> {
                 reverse: true, itemCount: totalItems,
                 itemBuilder: (context, index) {
                   if (index == snapshot.data!.docs.length) {
-                    return Container(margin: const EdgeInsets.all(16), padding: const EdgeInsets.all(16), decoration: BoxDecoration(color: Colors.black87, border: Border.all(color: Colors.cyanAccent), borderRadius: BorderRadius.circular(15)), child: Column(children: [const Icon(Icons.shield, color: Colors.cyanAccent, size: 40), const SizedBox(height: 10), Text("Bienvenue sur ${widget.nomDuJeu.toUpperCase()}", style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white)), const SizedBox(height: 10), const Text("📝 Règles : Respect, entraide et bon jeu. Pas d'insultes graves ni de spam.", style: TextStyle(color: Colors.white70), textAlign: TextAlign.center), const SizedBox(height: 5), const Text("💡 Info : Tape /help pour voir toutes les commandes secrètes. Chaque message te rapporte de l'XP et des Coins !", style: TextStyle(color: Colors.amber, fontSize: 12), textAlign: TextAlign.center)]));
+                    return Container(margin: const EdgeInsets.all(16), padding: const EdgeInsets.all(16), decoration: BoxDecoration(color: Colors.black87, border: Border.all(color: Colors.cyanAccent), borderRadius: BorderRadius.circular(15)), child: Column(children: [const Icon(Icons.shield, color: Colors.cyanAccent, size: 40), const SizedBox(height: 10), Text("Bienvenue sur ${widget.nomDuJeu.toUpperCase()}", style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white)), const SizedBox(height: 10), const Text("📝 Règles : Respect, entraide et bon jeu. Pas d'insultes graves ni de spam.", style: TextStyle(color: Colors.white70), textAlign: TextAlign.center), const SizedBox(height: 5), const Text("💡 Info : Tape /help pour voir les commandes secrètes. Chaque message rapporte de l'XP !", style: TextStyle(color: Colors.amber, fontSize: 12), textAlign: TextAlign.center)]));
                   }
 
                   final msgDoc = snapshot.data!.docs[index]; final msg = msgDoc.data() as Map<String, dynamic>; final bool isMe = msg['email'] == user?.email;
@@ -216,7 +222,6 @@ class _ChatWidgetState extends State<ChatWidget> {
                   int msgXp = msg['xp'] ?? 0; int lvl = (msgXp / 100).floor() + 1; String titreRPG = getTitreNiveau(lvl); 
                   List likes = msg['likes'] ?? []; bool userLFG = msg['isLFG'] ?? false; bool isSneak = msg['isSneak'] ?? false;
                   String timeString = ""; if (msg['timestamp'] != null) { DateTime dt = (msg['timestamp'] as Timestamp).toDate(); timeString = "${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}"; }
-                  bool isMentioned = widget.monPseudoGeneral.isNotEmpty && msg['texte'].toString().contains('@${widget.monPseudoGeneral}');
 
                   String textAAfficher = msg['texte'] ?? "";
                   bool isAction = textAAfficher.startsWith('📢') || textAAfficher.startsWith('🎲') || textAAfficher.startsWith('🪙') || textAAfficher.startsWith('💥') || textAAfficher.startsWith('🫂') || textAAfficher.startsWith('🎭') || textAAfficher.startsWith('💸') || textAAfficher.startsWith('🎰') || textAAfficher.startsWith('🎱') || textAAfficher.startsWith('🎁');
@@ -229,7 +234,7 @@ class _ChatWidgetState extends State<ChatWidget> {
                       onLongPress: () => actionMessage(msgDoc.id, msg['texte'] ?? "", isMe, msg['expediteur']), onDoubleTap: () => likerMessage(msgDoc.id, likes), 
                       child: Container(
                         margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 8), padding: const EdgeInsets.all(10),
-                        decoration: BoxDecoration(color: isMentioned ? Colors.amber.withOpacity(0.5) : (isMe ? Colors.cyanAccent.withOpacity(0.2) : Colors.black87), border: isMentioned ? Border.all(color: Colors.amber, width: 2) : Border.all(color: Colors.transparent), borderRadius: BorderRadius.circular(15)),
+                        decoration: BoxDecoration(color: (isMe && !isSneak) ? Colors.cyanAccent.withOpacity(0.2) : Colors.black87, borderRadius: BorderRadius.circular(15)),
                         child: Column(
                           crossAxisAlignment: isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
                           children: [
@@ -240,6 +245,7 @@ class _ChatWidgetState extends State<ChatWidget> {
                                 if(!isSneak && msg['role'] != 'bot') Text("[Lvl $lvl] ", style: const TextStyle(color: Colors.grey, fontSize: 10, fontWeight: FontWeight.bold)), 
                                 buildPseudo(msg['expediteur'] ?? "", msg['couleur'] ?? 'Cyan'), 
                                 if (badgeMsg.isNotEmpty) Text(" $badgeMsg", style: const TextStyle(fontSize: 12)),
+                                if (roleMsg == 'createur') const Text(" 🌌", style: TextStyle(fontSize: 12)), 
                                 if (roleMsg == 'admin') const Text(" 👑", style: TextStyle(fontSize: 12)), 
                                 if (roleMsg == 'modo') const Text(" 🛡️", style: TextStyle(fontSize: 12)), 
                                 if(userLFG) const Text(" 🎯", style: TextStyle(fontSize: 12))
@@ -274,8 +280,66 @@ class _ChatWidgetState extends State<ChatWidget> {
   }
 }
 
-// --- AMIS ---
-class FriendsPage extends StatelessWidget { const FriendsPage({super.key}); @override Widget build(BuildContext context) { return Scaffold(appBar: AppBar(title: const Text("Mes Amis")), body: const Center(child: Text("Code conservé"))); } }
+// --- RESTAURATION TOTALE DE L'ONGLET AMIS ---
+class FriendsPage extends StatefulWidget { const FriendsPage({super.key}); @override State<FriendsPage> createState() => _FriendsPageState(); }
+class _FriendsPageState extends State<FriendsPage> {
+  final TextEditingController searchController = TextEditingController(); final String myUid = FirebaseAuth.instance.currentUser!.uid;
+  Future<void> envoyerDemande() async {
+    String search = searchController.text.trim(); if (search.isEmpty) return;
+    var query = await FirebaseFirestore.instance.collection('utilisateurs').where('pseudos.Général', isEqualTo: search).get();
+    if (query.docs.isEmpty) { ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Joueur introuvable !"), backgroundColor: Colors.red)); } 
+    else {
+      String targetUid = query.docs.first.id;
+      if (targetUid == myUid) { ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Tu ne peux pas t'ajouter toi-même !"), backgroundColor: Colors.orange)); return; }
+      var myDoc = await FirebaseFirestore.instance.collection('utilisateurs').doc(myUid).get();
+      String monPseudo = myDoc.data()?['pseudos']?['Général'] ?? 'Joueur';
+      await FirebaseFirestore.instance.collection('utilisateurs').doc(targetUid).collection('notifications').add({'type': 'ami', 'de': monPseudo, 'uidExpediteur': myUid, 'lu': false, 'timestamp': FieldValue.serverTimestamp()});
+      searchController.clear(); ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Demande envoyée à $search ! 🚀"), backgroundColor: Colors.green));
+    }
+  }
+  @override Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text("Mes Amis")),
+      body: SafeArea(
+        child: Column(children: [
+          Padding(padding: const EdgeInsets.all(16.0), child: Row(children: [ Expanded(child: TextField(controller: searchController, decoration: const InputDecoration(hintText: "Pseudo...", border: OutlineInputBorder()))), const SizedBox(width: 8), ElevatedButton(onPressed: envoyerDemande, style: ElevatedButton.styleFrom(backgroundColor: Colors.cyanAccent, padding: const EdgeInsets.symmetric(vertical: 15)), child: const Text("Ajouter", style: TextStyle(color: Colors.black)))]),),
+          const Divider(),
+          Expanded(
+            child: StreamBuilder<DocumentSnapshot>(
+              stream: FirebaseFirestore.instance.collection('utilisateurs').doc(myUid).snapshots(),
+              builder: (context, snapshot) {
+                if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+                List<dynamic> mesAmis = (snapshot.data!.data() as Map?)?['amis'] ?? [];
+                if (mesAmis.isEmpty) return const Center(child: Text("Aucun ami pour le moment."));
+                return ListView.builder(
+                  itemCount: mesAmis.length,
+                  itemBuilder: (context, index) {
+                    return FutureBuilder<QuerySnapshot>(
+                      future: FirebaseFirestore.instance.collection('utilisateurs').where('pseudos.Général', isEqualTo: mesAmis[index]).get(),
+                      builder: (context, friendSnap) {
+                        bool isOnline = false; bool isAFK = false; bool isLFG = false; String statutPerso = "";
+                        if (friendSnap.hasData && friendSnap.data!.docs.isNotEmpty) { 
+                          var docData = friendSnap.data!.docs.first.data() as Map<String, dynamic>; 
+                          isOnline = docData.containsKey('enLigne') ? docData['enLigne'] == true : false; 
+                          isAFK = docData.containsKey('isAFK') ? docData['isAFK'] == true : false; 
+                          isLFG = docData.containsKey('isLFG') ? docData['isLFG'] == true : false; 
+                          statutPerso = docData.containsKey('statut') ? docData['statut'] : ""; 
+                        }
+                        String statut = isAFK ? "🌙 AFK" : (isOnline ? "🟢 En ligne" : "⚪ Hors ligne");
+                        if (statutPerso.isNotEmpty) statut += " - $statutPerso";
+                        return ListTile(leading: const CircleAvatar(backgroundColor: Colors.cyanAccent, child: Icon(Icons.person, color: Colors.black)), title: Row(children: [Text(mesAmis[index], style: const TextStyle(fontWeight: FontWeight.bold)), if(isLFG) const Text(" 🎯", style: TextStyle(fontSize: 14))]), subtitle: Text(statut, style: TextStyle(color: isAFK ? Colors.orange : (isOnline ? Colors.greenAccent : Colors.grey), fontSize: 12)), trailing: const Icon(Icons.chat_bubble, color: Colors.grey), onTap: () => Navigator.pushAndRemoveUntil(context, MaterialPageRoute(builder: (context) => MainScreen(salonInitial: "Privé : ${mesAmis[index]}")), (route) => false));
+                      }
+                    );
+                  },
+                );
+              },
+            ),
+          ),
+        ]),
+      ),
+    );
+  }
+}
 
 // --- PARAMÈTRES ---
 class ParametresPage extends StatefulWidget { final String monRole; const ParametresPage({super.key, required this.monRole}); @override State<ParametresPage> createState() => _ParametresPageState(); }
@@ -289,6 +353,8 @@ class _ParametresPageState extends State<ParametresPage> {
 
   @override Widget build(BuildContext context) {
     int lvl = (myXp / 100).floor() + 1;
+    String roleText = widget.monRole == 'createur' ? "🌌 CRÉATEUR DE L'APPLI" : (widget.monRole == 'admin' ? "👑 ADMINISTRATEUR" : (widget.monRole == 'modo' ? "🛡️ MODÉRATEUR" : "GAMER"));
+
     return Scaffold(
       appBar: AppBar(title: const Text('Profil')),
       body: SafeArea( 
@@ -296,6 +362,7 @@ class _ParametresPageState extends State<ParametresPage> {
           padding: const EdgeInsets.all(20),
           children: [
             CircleAvatar(radius: 40, backgroundImage: avatarController.text.isNotEmpty ? NetworkImage(avatarController.text) : null, child: avatarController.text.isEmpty ? const Icon(Icons.person, size: 50) : null), const SizedBox(height: 10),
+            Center(child: Text(roleText, style: TextStyle(color: widget.monRole == 'createur' ? Colors.purpleAccent : Colors.cyanAccent, fontWeight: FontWeight.bold))),
             Center(child: Text("Niveau $lvl - ${getTitreNiveau(lvl)} ($myXp XP)", style: const TextStyle(color: Colors.amber, fontWeight: FontWeight.bold))),
             Center(child: Text("💰 Solde : $myCoins ShadowCoins", style: const TextStyle(color: Colors.cyanAccent, fontWeight: FontWeight.bold))), const SizedBox(height: 20),
             TextField(controller: statutController, maxLength: 30, decoration: const InputDecoration(labelText: 'Statut (ex: Je mange des pâtes)', prefixIcon: Icon(Icons.bubble_chart))),
@@ -304,7 +371,7 @@ class _ParametresPageState extends State<ParametresPage> {
             TextField(controller: avatarController, decoration: const InputDecoration(labelText: 'URL Photo', prefixIcon: Icon(Icons.image))), const SizedBox(height: 20),
             DropdownButtonFormField<String>(value: myColor, decoration: const InputDecoration(labelText: "Couleur Pseudo VIP", border: OutlineInputBorder()), items: ['Cyan', 'Rouge', 'Vert', 'Violet', 'Or', 'Rainbow'].map((String val) { return DropdownMenuItem<String>(value: val, child: Text(val, style: TextStyle(color: getCouleurPseudo(val), fontWeight: FontWeight.bold))); }).toList(), onChanged: (v) { setState(() => myColor = v!); }),
             const SizedBox(height: 20), ElevatedButton(onPressed: sauvegarder, style: ElevatedButton.styleFrom(backgroundColor: Colors.cyanAccent), child: const Text("SAUVEGARDER", style: TextStyle(color: Colors.black))),
-            if (widget.monRole == 'admin' || widget.monRole == 'modo') ...[const Divider(color: Colors.amber, height: 40), ListTile(leading: const Icon(Icons.gavel, color: Colors.amber), title: const Text('Panneau de Modération', style: TextStyle(color: Colors.amber, fontWeight: FontWeight.bold)), onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => AdminPage(monRole: widget.monRole))))],
+            if (widget.monRole == 'admin' || widget.monRole == 'modo' || widget.monRole == 'createur') ...[const Divider(color: Colors.amber, height: 40), ListTile(leading: const Icon(Icons.gavel, color: Colors.amber), title: const Text('Panneau de Modération', style: TextStyle(color: Colors.amber, fontWeight: FontWeight.bold)), onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => AdminPage(monRole: widget.monRole))))],
             const Divider(height: 40), ListTile(leading: const Icon(Icons.logout, color: Colors.red), title: const Text('Déconnexion'), onTap: () async { await FirebaseAuth.instance.signOut(); Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const LoginPage())); }),
           ],
         ),
@@ -313,18 +380,24 @@ class _ParametresPageState extends State<ParametresPage> {
   }
 }
 
-// --- LE PANNEAU DE MODERATION V5.0 ---
+// --- LE PANNEAU DE MODERATION (RECHERCHE "TOUS" CORRIGÉE) ---
 class AdminPage extends StatefulWidget { final String monRole; const AdminPage({super.key, required this.monRole}); @override State<AdminPage> createState() => _AdminPageState(); }
 class _AdminPageState extends State<AdminPage> {
   final TextEditingController rechercheController = TextEditingController();
 
+  Future<QuerySnapshot> getRecherche() {
+    String search = rechercheController.text.trim();
+    if (search.toLowerCase() == 'tous') { return FirebaseFirestore.instance.collection('utilisateurs').get(); } // TOUS LES JOUEURS
+    return FirebaseFirestore.instance.collection('utilisateurs').where('pseudos.Général', isEqualTo: search).get();
+  }
+
   void gererJoueur(DocumentSnapshot doc) {
     Map<String, dynamic> data = doc.data() as Map<String, dynamic>; String uid = doc.id; String pseudo = data['pseudos']?['Général'] ?? 'Inconnu'; String roleJoueur = data['role'] ?? 'user'; bool isBanni = data['banni'] ?? false; bool isMuted = data['isMuted'] ?? false; String appel = data['messageAppel'] ?? ''; int warns = data['warnings'] ?? 0;
     
-    // Un Admin ou Modo ne peut pas cibler un Admin (Immunité !)
-    if (roleJoueur == 'admin' && uid != FirebaseAuth.instance.currentUser!.uid) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Action impossible : Ce joueur est un Administrateur."))); return;
-    }
+    // IMMUNITÉ HIERARCHIQUE
+    String myUid = FirebaseAuth.instance.currentUser!.uid;
+    if (roleJoueur == 'createur' && uid != myUid) { ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Action impossible : Ce joueur est le Créateur."))); return; }
+    if (roleJoueur == 'admin' && widget.monRole != 'createur' && uid != myUid) { ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Action impossible : Ce joueur est un Administrateur."))); return; }
 
     showModalBottomSheet(context: context, isScrollControlled: true, builder: (context) { 
       return SafeArea( 
@@ -336,34 +409,63 @@ class _AdminPageState extends State<AdminPage> {
             if (appel.isNotEmpty && isBanni) ...[const SizedBox(height: 10), Container(padding: const EdgeInsets.all(10), color: Colors.red.withOpacity(0.2), child: Text("📜 Appel reçu : \"$appel\"", style: const TextStyle(fontStyle: FontStyle.italic)))], 
             const Divider(), 
             
-            // SYSTEME D'AVERTISSEMENT
-            if (!isBanni) ListTile(leading: const Icon(Icons.warning, color: Colors.orange), title: const Text("Donner un Avertissement (Warn)"), onTap: () async {
-              if (warns >= 2) { 
-                DateTime fin = DateTime.now().add(const Duration(hours: 24));
-                await FirebaseFirestore.instance.collection('utilisateurs').doc(uid).update({'banni': true, 'causeBan': "3 Avertissements atteints.", 'finBan': Timestamp.fromDate(fin), 'warnings': 0}); 
-                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Joueur auto-banni pour 24h (3 warns).")));
-              } else { await FirebaseFirestore.instance.collection('utilisateurs').doc(uid).update({'warnings': FieldValue.increment(1)}); ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Avertissement ajouté."))); }
+            if (!isBanni) ListTile(leading: const Icon(Icons.warning, color: Colors.orange), title: const Text("Donner un Warn"), onTap: () async {
+              if (warns >= 2) { DateTime fin = DateTime.now().add(const Duration(hours: 24)); await FirebaseFirestore.instance.collection('utilisateurs').doc(uid).update({'banni': true, 'causeBan': "3 Avertissements atteints.", 'finBan': Timestamp.fromDate(fin), 'warnings': 0}); ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Auto-banni (3 warns)."))); } else { await FirebaseFirestore.instance.collection('utilisateurs').doc(uid).update({'warnings': FieldValue.increment(1)}); ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Avertissement ajouté."))); }
               Navigator.pop(context); setState((){}); 
             }),
-
             ListTile(leading: Icon(isMuted ? Icons.volume_up : Icons.volume_off, color: Colors.blueAccent), title: Text(isMuted ? "Enlever le Mute" : "Rendre Muet"), onTap: () async { await FirebaseFirestore.instance.collection('utilisateurs').doc(uid).update({'isMuted': !isMuted}); Navigator.pop(context); setState((){}); }), 
             if (isBanni) ListTile(leading: const Icon(Icons.check_circle, color: Colors.green), title: const Text("Pardonner et Débannir"), onTap: () async { await FirebaseFirestore.instance.collection('utilisateurs').doc(uid).update({'banni': false, 'causeBan': FieldValue.delete(), 'finBan': FieldValue.delete(), 'messageAppel': '', 'warnings': 0}); Navigator.pop(context); setState((){}); }),
+            if (!isBanni) ListTile(leading: const Icon(Icons.timer, color: Colors.orange), title: const Text("Bannir (24h)"), onTap: () { Navigator.pop(context); final causeController = TextEditingController(); showDialog(context: context, builder: (context) => AlertDialog(title: const Text("Motif du Ban 24h"), content: TextField(controller: causeController), actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text("Annuler")), ElevatedButton(onPressed: () async { DateTime fin = DateTime.now().add(const Duration(hours: 24)); await FirebaseFirestore.instance.collection('utilisateurs').doc(uid).update({'banni': true, 'causeBan': causeController.text.trim(), 'finBan': Timestamp.fromDate(fin)}); Navigator.pop(context); setState((){}); }, child: const Text("BANNIR 24H"))])); }),
             
-            if (!isBanni) ListTile(leading: const Icon(Icons.timer, color: Colors.orange), title: const Text("Bannir Temporairement (24h)"), onTap: () {
-              Navigator.pop(context); final causeController = TextEditingController();
-              showDialog(context: context, builder: (context) => AlertDialog(title: const Text("Motif du Ban 24h"), content: TextField(controller: causeController, decoration: const InputDecoration(hintText: "Ex: Insultes...")), actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text("Annuler")), ElevatedButton(style: ElevatedButton.styleFrom(backgroundColor: Colors.orange), onPressed: () async { DateTime fin = DateTime.now().add(const Duration(hours: 24)); await FirebaseFirestore.instance.collection('utilisateurs').doc(uid).update({'banni': true, 'causeBan': causeController.text.trim(), 'finBan': Timestamp.fromDate(fin)}); Navigator.pop(context); setState((){}); }, child: const Text("BANNIR 24H"))])); 
-            }),
-            
-            if (!isBanni && widget.monRole == 'admin') ListTile(leading: const Icon(Icons.block, color: Colors.red), title: const Text("Bannir Définitivement"), onTap: () {
-              Navigator.pop(context); final causeController = TextEditingController();
-              showDialog(context: context, builder: (context) => AlertDialog(title: const Text("Motif du Ban Permanent"), content: TextField(controller: causeController, decoration: const InputDecoration(hintText: "Ex: Triche...")), actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text("Annuler")), ElevatedButton(style: ElevatedButton.styleFrom(backgroundColor: Colors.red), onPressed: () async { await FirebaseFirestore.instance.collection('utilisateurs').doc(uid).update({'banni': true, 'causeBan': causeController.text.trim()}); Navigator.pop(context); setState((){}); }, child: const Text("BAN PERM"))])); 
-            }),
+            if (!isBanni && (widget.monRole == 'admin' || widget.monRole == 'createur')) ListTile(leading: const Icon(Icons.block, color: Colors.red), title: const Text("Bannir Définitivement"), onTap: () { Navigator.pop(context); final causeController = TextEditingController(); showDialog(context: context, builder: (context) => AlertDialog(title: const Text("Motif"), content: TextField(controller: causeController), actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text("Annuler")), ElevatedButton(style: ElevatedButton.styleFrom(backgroundColor: Colors.red), onPressed: () async { await FirebaseFirestore.instance.collection('utilisateurs').doc(uid).update({'banni': true, 'causeBan': causeController.text.trim()}); Navigator.pop(context); setState((){}); }, child: const Text("BAN PERM"))])); }),
 
-            if (widget.monRole == 'admin' && roleJoueur != 'admin') ListTile(leading: const Icon(Icons.shield, color: Colors.amber), title: Text(roleJoueur == 'modo' ? "Rétrograder en Joueur" : "Promouvoir Modérateur"), onTap: () async { await FirebaseFirestore.instance.collection('utilisateurs').doc(uid).update({'role': roleJoueur == 'modo' ? 'user' : 'modo'}); Navigator.pop(context); setState((){}); }),
+            // GESTION DES ROLES (SEUL LE CREATEUR PEUT NOMMER UN ADMIN)
+            if (widget.monRole == 'createur' && roleJoueur != 'createur') ListTile(leading: const Icon(Icons.star, color: Colors.purpleAccent), title: Text(roleJoueur == 'admin' ? "Rétrograder en Joueur" : "Promouvoir Administrateur"), onTap: () async { await FirebaseFirestore.instance.collection('utilisateurs').doc(uid).update({'role': roleJoueur == 'admin' ? 'user' : 'admin'}); Navigator.pop(context); setState((){}); }),
+            if ((widget.monRole == 'admin' || widget.monRole == 'createur') && roleJoueur != 'admin' && roleJoueur != 'createur') ListTile(leading: const Icon(Icons.shield, color: Colors.amber), title: Text(roleJoueur == 'modo' ? "Rétrograder en Joueur" : "Promouvoir Modérateur"), onTap: () async { await FirebaseFirestore.instance.collection('utilisateurs').doc(uid).update({'role': roleJoueur == 'modo' ? 'user' : 'modo'}); Navigator.pop(context); setState((){}); }),
           ])
         )
       ); 
     });
   }
-  @override Widget build(BuildContext context) { return Scaffold(appBar: AppBar(title: const Text('Modération & Conflits', style: TextStyle(color: Colors.amber))), body: SafeArea(child: Column(children: [Padding(padding: const EdgeInsets.all(16.0), child: TextField(controller: rechercheController, decoration: InputDecoration(labelText: "Rechercher un pseudo...", suffixIcon: IconButton(icon: const Icon(Icons.search), onPressed: () => setState(() {}))))), Expanded(child: FutureBuilder<QuerySnapshot>(future: FirebaseFirestore.instance.collection('utilisateurs').where('pseudos.Général', isEqualTo: rechercheController.text.trim()).get(), builder: (context, snapshot) { if (rechercheController.text.isEmpty) return const Center(child: Text("Cherche un joueur à gérer.")); if (!snapshot.hasData || snapshot.data!.docs.isEmpty) return const Center(child: Text("Joueur introuvable.")); var doc = snapshot.data!.docs.first; Map<String, dynamic> data = doc.data() as Map<String, dynamic>; String role = data['role'] ?? 'user'; return Card(margin: const EdgeInsets.all(10), child: ListTile(title: Text(data['pseudos']['Général'], style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)), subtitle: Text("Rôle : $role\nMute : ${data['isMuted'] == true ? 'Oui' : 'Non'} | Banni : ${data['banni'] == true ? 'Oui' : 'Non'}"), trailing: const Icon(Icons.settings, color: Colors.cyanAccent), onTap: () => gererJoueur(doc))); },))]))) ; }
+
+  @override Widget build(BuildContext context) { 
+    return Scaffold(
+      appBar: AppBar(title: const Text('Modération', style: TextStyle(color: Colors.amber))), 
+      body: SafeArea(
+        child: Column(
+          children: [
+            Padding(padding: const EdgeInsets.all(16.0), child: TextField(controller: rechercheController, decoration: InputDecoration(labelText: "Pseudo (Tape 'Tous' pour voir tout le monde)", suffixIcon: IconButton(icon: const Icon(Icons.search), onPressed: () => setState(() {}))))), 
+            Expanded(
+              child: FutureBuilder<QuerySnapshot>(
+                future: getRecherche(), 
+                builder: (context, snapshot) { 
+                  if (rechercheController.text.isEmpty) return const Center(child: Text("Cherche un joueur.")); 
+                  if (!snapshot.hasData || snapshot.data!.docs.isEmpty) return const Center(child: Text("Joueur introuvable.")); 
+                  
+                  // AFFICHAGE DE LA LISTE MULTIPLE (POUR LE MOT "TOUS")
+                  return ListView.builder(
+                    itemCount: snapshot.data!.docs.length,
+                    itemBuilder: (context, index) {
+                      var doc = snapshot.data!.docs[index]; Map<String, dynamic> data = doc.data() as Map<String, dynamic>; 
+                      String role = data['role'] ?? 'user'; 
+                      String displayRole = role == 'createur' ? '🌌 Créateur' : (role == 'admin' ? '👑 Admin' : (role == 'modo' ? '🛡️ Modo' : 'Gamer'));
+                      return Card(
+                        margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 5), 
+                        child: ListTile(
+                          title: Text(data['pseudos']['Général'], style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)), 
+                          subtitle: Text("$displayRole\nMute : ${data['isMuted'] == true ? 'Oui' : 'Non'} | Banni : ${data['banni'] == true ? 'Oui' : 'Non'}"), 
+                          trailing: const Icon(Icons.settings, color: Colors.cyanAccent), 
+                          onTap: () => gererJoueur(doc)
+                        )
+                      );
+                    }
+                  );
+                }
+              )
+            )
+          ]
+        )
+      )
+    ); 
+  }
 }
