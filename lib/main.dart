@@ -21,9 +21,7 @@ class MyApp extends StatelessWidget {
 }
 
 // --- OUTILS & GAMIFICATION ---
-Color getCouleurPseudo(String col) {
-  switch(col) { case 'Rouge': return Colors.redAccent; case 'Vert': return Colors.greenAccent; case 'Violet': return Colors.purpleAccent; case 'Or': return Colors.amber; default: return Colors.cyanAccent; }
-}
+Color getCouleurPseudo(String col) { switch(col) { case 'Rouge': return Colors.redAccent; case 'Vert': return Colors.greenAccent; case 'Violet': return Colors.purpleAccent; case 'Or': return Colors.amber; default: return Colors.cyanAccent; } }
 String getTitreNiveau(int lvl) { if(lvl >= 50) return "Légende"; if(lvl >= 30) return "Élite"; if(lvl >= 10) return "Vétéran"; if(lvl >= 5) return "Habitué"; return "Recrue"; }
 
 // --- CHARGEMENT ---
@@ -95,12 +93,7 @@ class LeaderboardPage extends StatelessWidget {
             itemBuilder: (context, index) {
               var d = snapshot.data!.docs[index].data() as Map<String, dynamic>;
               String pseudo = d['pseudos']?['Général'] ?? 'Inconnu'; int xp = d['xp'] ?? 0; int coins = d['coins'] ?? 0;
-              return ListTile(
-                leading: CircleAvatar(backgroundColor: index == 0 ? Colors.amber : (index == 1 ? Colors.grey[300] : (index == 2 ? Colors.orange[800] : Colors.blueGrey)), child: Text("#${index+1}", style: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold))),
-                title: Text(pseudo, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-                subtitle: Text("Niv. ${(xp/100).floor()+1} • 🪙 $coins Coins", style: const TextStyle(color: Colors.amber)),
-                trailing: Text("$xp XP", style: const TextStyle(color: Colors.cyanAccent, fontWeight: FontWeight.bold)),
-              );
+              return ListTile(leading: CircleAvatar(backgroundColor: index == 0 ? Colors.amber : (index == 1 ? Colors.grey[300] : (index == 2 ? Colors.orange[800] : Colors.blueGrey)), child: Text("#${index+1}", style: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold))), title: Text(pseudo, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)), subtitle: Text("Niv. ${(xp/100).floor()+1} • 🪙 $coins Coins", style: const TextStyle(color: Colors.amber)), trailing: Text("$xp XP", style: const TextStyle(color: Colors.cyanAccent, fontWeight: FontWeight.bold)));
             }
           );
         }
@@ -123,8 +116,7 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
   Future<void> _chargerInfos() async { var doc = await FirebaseFirestore.instance.collection('utilisateurs').doc(myUid).get(); if (doc.exists) { setState(() { myRole = doc.data()?['role'] ?? 'user'; myAvatarUrl = doc.data()?['avatar'] ?? ''; monPseudoGeneral = doc.data()?['pseudos']?['Général'] ?? ''; }); } }
 
   void _afficherCreationSalon() {
-    final TextEditingController nomSalonController = TextEditingController();
-    final TextEditingController bgUrlController = TextEditingController();
+    final TextEditingController nomSalonController = TextEditingController(); final TextEditingController bgUrlController = TextEditingController();
     showDialog(context: context, builder: (context) => AlertDialog(title: const Text("Créer un Salon"), content: Column(mainAxisSize: MainAxisSize.min, children: [TextField(controller: nomSalonController, maxLength: 25, decoration: const InputDecoration(hintText: "Nom du salon...", border: OutlineInputBorder())), const SizedBox(height: 10), TextField(controller: bgUrlController, decoration: const InputDecoration(hintText: "URL Image de Fond (Optionnel)", prefixIcon: Icon(Icons.image), border: OutlineInputBorder()))]), actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text("Annuler")), ElevatedButton(onPressed: () async { String nomCustom = nomSalonController.text.trim(); if (nomCustom.isNotEmpty && !tousLesSalons.contains(nomCustom)) { await FirebaseFirestore.instance.collection('salons_custom').doc(nomCustom).set({'nom': nomCustom, 'bgUrl': bgUrlController.text.trim(), 'createur': myUid, 'timestamp': FieldValue.serverTimestamp()}); Navigator.pop(context); setState(() { salonActuel = nomCustom; customBg = bgUrlController.text.trim(); }); } }, style: ElevatedButton.styleFrom(backgroundColor: Colors.cyanAccent), child: const Text("CRÉER", style: TextStyle(color: Colors.black)))]));
   }
 
@@ -143,52 +135,40 @@ class ChatWidget extends StatefulWidget { final String nomDuJeu; final String mo
 class _ChatWidgetState extends State<ChatWidget> {
   final TextEditingController messageController = TextEditingController(); late stt.SpeechToText _speech; bool _isListening = false;
   String myAvatarUrl = ''; String myRole = 'user'; bool isMuted = false; int myXp = 0; int myCoins = 0; String myColor = 'Cyan'; String? reponseA;
-  bool filtreInsultesActif = true; bool isAFK = false; bool isLFG = false;
-  final String myUid = FirebaseAuth.instance.currentUser!.uid;
+  bool filtreInsultesActif = true; bool isAFK = false; bool isLFG = false; final String myUid = FirebaseAuth.instance.currentUser!.uid;
 
   @override void initState() { super.initState(); _speech = stt.SpeechToText(); _chargerMesInfos(); }
   Future<void> _chargerMesInfos() async { var doc = await FirebaseFirestore.instance.collection('utilisateurs').doc(myUid).get(); if (doc.exists) { var d = doc.data()!; setState(() { myAvatarUrl = d['avatar'] ?? ''; myRole = d['role'] ?? 'user'; isMuted = d['isMuted'] ?? false; myXp = d['xp'] ?? 0; myCoins = d['coins'] ?? 0; myColor = d['couleur'] ?? 'Cyan'; filtreInsultesActif = d['filtreInsultes'] ?? true; isAFK = d['isAFK'] ?? false; isLFG = d['isLFG'] ?? false; }); } }
 
-  void _ecouterAssistant() async { var status = await Permission.microphone.request(); if (status.isPermanentlyDenied || status.isDenied) { await openAppSettings(); return; } if (!_isListening) { bool a = await _speech.initialize(); if (a) { setState(() => _isListening = true); _speech.listen(localeId: 'fr_FR', onResult: (val) { String t = val.recognizedWords.toLowerCase(); if (t.contains("fin") || t.contains("mute")) { _speech.stop(); setState(() => _isListening = false); return; } if (t.contains("shadow fait une conversation privée avec")) { List<String> mots = t.split("avec"); if (mots.length > 1) { _speech.stop(); setState(() => _isListening = false); widget.onChangeSalon("Privé : ${mots.last.trim()}"); } } }); } } else { setState(() => _isListening = false); _speech.stop(); } }
-
   Future<void> envoyerMessage() async {
     if (isMuted) { ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("🔇 Tu es muet."))); return; }
     String texte = messageController.text.trim(); if (texte.isEmpty) return;
-    String pseudoAffiche = widget.monPseudoGeneral; bool isSneak = false;
     
+    // LA NOUVELLE COMMANDE HELP (AFFICHE LA LISTE)
+    if (texte == '/help' || texte == '/commandes') {
+      showDialog(context: context, builder: (context) => AlertDialog(
+        title: const Text("📜 Liste des Commandes", style: TextStyle(color: Colors.amber)),
+        backgroundColor: Colors.black87,
+        content: const SingleChildScrollView(
+          child: Text(
+            "🎮 JEUX & FUN:\n/roll - Lance les dés\n/pileouface - Pile ou face\n/slots [mise] - Machine à sous\n/8ball [question] - Boule magique\n\n"
+            "💬 ACTIONS:\n/slap @pseudo - Gifle quelqu'un\n/hug @pseudo - Fait un câlin\n/me [action] - Roleplay\n/tableflip - Jette une table\n/shrug - Hausse les épaules\n\n"
+            "🕵️ SECRET & SOCIAL:\n/sneak [msg] - Message anonyme\n/afk [raison] - Passe en Absent\n/donner @pseudo [x] - Donne des Coins\n||texte|| - Cache un spoiler\n> texte - Citation verte\n\n"
+            "👑 ADMIN:\n/annonce [msg] - Message global\n/clear - Nettoie l'écran", 
+            style: TextStyle(color: Colors.white)
+          )
+        ),
+        actions: [TextButton(onPressed: ()=>Navigator.pop(context), child: const Text("Fermer", style: TextStyle(color: Colors.cyanAccent)))]
+      ));
+      messageController.clear(); return;
+    }
+
+    String pseudoAffiche = widget.monPseudoGeneral; bool isSneak = false;
     if (isAFK && !texte.startsWith('/afk')) { await FirebaseFirestore.instance.collection('utilisateurs').doc(myUid).update({'isAFK': false}); setState(() => isAFK = false); texte = "👋 Est de retour !\n$texte"; }
 
-    // ROULETTE RUSSE 🔫
-    if (texte == '/roulette') {
-      if (Random().nextInt(6) == 0) { texte = "💥 PAN ! S'est pris la balle et est muet pour 1 minute !"; FirebaseFirestore.instance.collection('utilisateurs').doc(myUid).update({'isMuted': true}); setState(() => isMuted = true); Future.delayed(const Duration(minutes: 1), () { FirebaseFirestore.instance.collection('utilisateurs').doc(myUid).update({'isMuted': false}); if(mounted) setState(() => isMuted = false); }); } else { texte = "💨 Clic... A survécu à la roulette russe."; }
-    }
-    // CASINO SLOTS 🎰
-    else if (texte.startsWith('/slots ')) {
-      int mise = int.tryParse(texte.substring(7).trim()) ?? 0;
-      if (mise <= 0 || mise > myCoins) { ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Fonds insuffisants ou invalides."))); return; }
-      List<String> items = ['🍒', '🍋', '🔔', '💎', '7️⃣'];
-      String r1 = items[Random().nextInt(items.length)]; String r2 = items[Random().nextInt(items.length)]; String r3 = items[Random().nextInt(items.length)];
-      if (r1 == r2 && r2 == r3) { texte = "🎰 [$r1 $r2 $r3] JACKPOT ! Remporte ${mise*10} Coins !"; myCoins += (mise*10); }
-      else if (r1 == r2 || r2 == r3 || r1 == r3) { texte = "🎰 [$r1 $r2 $r3] Gagne ${mise*2} Coins !"; myCoins += (mise*2); }
-      else { texte = "🎰 [$r1 $r2 $r3] A perdu sa mise de $mise Coins."; myCoins -= mise; }
-      await FirebaseFirestore.instance.collection('utilisateurs').doc(myUid).update({'coins': myCoins});
-    }
-    // DONS 💸
-    else if (texte.startsWith('/donner ')) {
-      List<String> args = texte.split(' ');
-      if (args.length == 3 && args[1].startsWith('@')) {
-        int montant = int.tryParse(args[2]) ?? 0; String cible = args[1].substring(1);
-        if (montant > 0 && montant <= myCoins) {
-          var targetSnap = await FirebaseFirestore.instance.collection('utilisateurs').where('pseudos.Général', isEqualTo: cible).get();
-          if (targetSnap.docs.isNotEmpty) {
-            await FirebaseFirestore.instance.collection('utilisateurs').doc(targetSnap.docs.first.id).update({'coins': FieldValue.increment(montant)});
-            myCoins -= montant; await FirebaseFirestore.instance.collection('utilisateurs').doc(myUid).update({'coins': myCoins});
-            texte = "💸 A généreusement donné $montant Coins à $cible !";
-          } else { ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Joueur introuvable."))); return; }
-        } else { return; }
-      }
-    }
-    // COMMANDES CLASSIQUES
+    if (texte == '/roulette') { if (Random().nextInt(6) == 0) { texte = "💥 PAN ! S'est pris la balle et est muet pour 1 minute !"; FirebaseFirestore.instance.collection('utilisateurs').doc(myUid).update({'isMuted': true}); setState(() => isMuted = true); Future.delayed(const Duration(minutes: 1), () { FirebaseFirestore.instance.collection('utilisateurs').doc(myUid).update({'isMuted': false}); if(mounted) setState(() => isMuted = false); }); } else { texte = "💨 Clic... A survécu à la roulette russe."; } }
+    else if (texte.startsWith('/slots ')) { int mise = int.tryParse(texte.substring(7).trim()) ?? 0; if (mise <= 0 || mise > myCoins) { ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Fonds insuffisants ou invalides."))); return; } List<String> items = ['🍒', '🍋', '🔔', '💎', '7️⃣']; String r1 = items[Random().nextInt(items.length)]; String r2 = items[Random().nextInt(items.length)]; String r3 = items[Random().nextInt(items.length)]; if (r1 == r2 && r2 == r3) { texte = "🎰 [$r1 $r2 $r3] JACKPOT ! Remporte ${mise*10} Coins !"; myCoins += (mise*10); } else if (r1 == r2 || r2 == r3 || r1 == r3) { texte = "🎰 [$r1 $r2 $r3] Gagne ${mise*2} Coins !"; myCoins += (mise*2); } else { texte = "🎰 [$r1 $r2 $r3] A perdu sa mise de $mise Coins."; myCoins -= mise; } await FirebaseFirestore.instance.collection('utilisateurs').doc(myUid).update({'coins': myCoins}); }
+    else if (texte.startsWith('/donner ')) { List<String> args = texte.split(' '); if (args.length == 3 && args[1].startsWith('@')) { int montant = int.tryParse(args[2]) ?? 0; String cible = args[1].substring(1); if (montant > 0 && montant <= myCoins) { var targetSnap = await FirebaseFirestore.instance.collection('utilisateurs').where('pseudos.Général', isEqualTo: cible).get(); if (targetSnap.docs.isNotEmpty) { await FirebaseFirestore.instance.collection('utilisateurs').doc(targetSnap.docs.first.id).update({'coins': FieldValue.increment(montant)}); myCoins -= montant; await FirebaseFirestore.instance.collection('utilisateurs').doc(myUid).update({'coins': myCoins}); texte = "💸 A généreusement donné $montant Coins à $cible !"; } else { ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Joueur introuvable."))); return; } } else { return; } } }
     else if (texte.startsWith('/')) {
       if (texte == '/tableflip') { texte = "(╯°□°）╯︵ ┻━┻"; } else if (texte == '/shrug') { texte = "¯\\_(ツ)_/¯"; }
       else if (texte.startsWith('/sneak ')) { texte = texte.substring(7); isSneak = true; pseudoAffiche = "🕵️ Inconnu"; }
@@ -201,7 +181,6 @@ class _ChatWidgetState extends State<ChatWidget> {
     }
 
     try { var doc = await FirebaseFirestore.instance.collection('utilisateurs').doc(myUid).get(); if (doc.exists && !isSneak) pseudoAffiche = doc.data()!['pseudos']?[widget.nomDuJeu] ?? widget.monPseudoGeneral; } catch (e) { }
-    
     await FirebaseFirestore.instance.collection('salons').doc(widget.nomDuJeu).collection('messages').add({'texte': texte, 'expediteur': pseudoAffiche, 'avatar': isSneak ? '' : myAvatarUrl, 'role': isSneak ? 'user' : myRole, 'email': FirebaseAuth.instance.currentUser!.email, 'xp': isSneak ? 0 : myXp, 'couleur': myColor, 'replyTo': reponseA, 'likes': [], 'isLFG': isLFG, 'isSneak': isSneak, 'timestamp': FieldValue.serverTimestamp()});
     await FirebaseFirestore.instance.collection('utilisateurs').doc(myUid).update({'xp': FieldValue.increment(10), 'coins': FieldValue.increment(5)});
     setState(() { reponseA = null; myXp += 10; myCoins += 5; }); messageController.clear();
@@ -210,25 +189,18 @@ class _ChatWidgetState extends State<ChatWidget> {
   void likerMessage(String msgId, List currentLikes) { if (currentLikes.contains(myUid)) currentLikes.remove(myUid); else currentLikes.add(myUid); FirebaseFirestore.instance.collection('salons').doc(widget.nomDuJeu).collection('messages').doc(msgId).update({'likes': currentLikes}); }
   void actionMessage(String msgId, String texte, bool isMe, String auteur) { showDialog(context: context, builder: (context) => AlertDialog(title: const Text("Action"), actions: [TextButton(onPressed: () { setState(() => reponseA = "$auteur : $texte"); Navigator.pop(context); }, child: const Text("Répondre 💬", style: TextStyle(color: Colors.blue))), TextButton(onPressed: () { Clipboard.setData(ClipboardData(text: texte)); Navigator.pop(context); }, child: const Text("Copier", style: TextStyle(color: Colors.white))), if (isMe || myRole == 'admin' || myRole == 'modo') TextButton(onPressed: () async { await FirebaseFirestore.instance.collection('salons').doc(widget.nomDuJeu).collection('messages').doc(msgId).delete(); Navigator.pop(context); }, child: const Text("Supprimer", style: TextStyle(color: Colors.red))),])); }
 
-  // EFFET RAINBOW VIP
   Widget buildPseudo(String pseudo, String couleur) {
-    if (couleur == 'Rainbow') {
-      return ShaderMask(shaderCallback: (bounds) => const LinearGradient(colors: [Colors.red, Colors.orange, Colors.yellow, Colors.green, Colors.blue, Colors.purple]).createShader(bounds), child: Text(pseudo, style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white, fontSize: 13)));
-    }
+    if (couleur == 'Rainbow') { return ShaderMask(shaderCallback: (bounds) => const LinearGradient(colors: [Colors.red, Colors.orange, Colors.yellow, Colors.green, Colors.blue, Colors.purple]).createShader(bounds), child: Text(pseudo, style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white, fontSize: 13))); }
     return Text(pseudo, style: TextStyle(fontWeight: FontWeight.bold, color: getCouleurPseudo(couleur), fontSize: 13));
   }
 
-  // INTERPRETEUR D'IMAGES ET STYLES
   Widget buildFormattedText(String text, bool isAction) {
     RegExp imgRegex = RegExp(r'(https?:\/\/[^\s]+(?:\.jpg|\.jpeg|\.png|\.gif))', caseSensitive: false);
     if (imgRegex.hasMatch(text)) {
-      String url = imgRegex.firstMatch(text)!.group(0)!;
-      String cleanText = text.replaceAll(url, '').trim();
+      String url = imgRegex.firstMatch(text)!.group(0)!; String cleanText = text.replaceAll(url, '').trim();
       return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [if (cleanText.isNotEmpty) Text(cleanText, style: const TextStyle(fontSize: 16, color: Colors.white)), const SizedBox(height: 5), ClipRRect(borderRadius: BorderRadius.circular(10), child: Image.network(url, height: 150, fit: BoxFit.cover))]);
     }
-    // TEXTE CLASSIQUE + GESTION DU GRAS/ITALIQUE/GREENTEXT BASIQUE
-    Color tColor = isAction ? Colors.orangeAccent : Colors.white;
-    if (text.startsWith('> ')) { tColor = Colors.lightGreenAccent; } // Greentext
+    Color tColor = isAction ? Colors.orangeAccent : Colors.white; if (text.startsWith('> ')) { tColor = Colors.lightGreenAccent; }
     return Text(text, style: TextStyle(fontSize: 16, color: tColor, fontStyle: isAction ? FontStyle.italic : FontStyle.normal));
   }
 
@@ -267,15 +239,27 @@ class _ChatWidgetState extends State<ChatWidget> {
                           crossAxisAlignment: isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
                           children: [
                             if (msg['replyTo'] != null) Container(margin: const EdgeInsets.only(bottom: 5), padding: const EdgeInsets.all(5), decoration: BoxDecoration(color: Colors.white10, border: const Border(left: BorderSide(color: Colors.cyanAccent, width: 3)), borderRadius: BorderRadius.circular(5)), child: Text(msg['replyTo'], style: const TextStyle(color: Colors.grey, fontSize: 12, fontStyle: FontStyle.italic), maxLines: 1, overflow: TextOverflow.ellipsis)),
+                            
+                            // LE PSEUDO APPARAIT POUR TOUT LE MONDE MAINTENANT
+                            Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                if(!isSneak) Text("[Lvl $lvl] ", style: const TextStyle(color: Colors.grey, fontSize: 10, fontWeight: FontWeight.bold)), 
+                                if(!isSneak && msgXp > 0) const Text("💠 ", style: TextStyle(fontSize: 10)), 
+                                buildPseudo(msg['expediteur'] ?? "", msg['couleur'] ?? 'Cyan'), 
+                                if (roleMsg == 'admin') const Text(" 👑", style: TextStyle(fontSize: 12)), 
+                                if (roleMsg == 'modo') const Text(" 🛡️", style: TextStyle(fontSize: 12)), 
+                                if(userLFG) const Text(" 🎯", style: TextStyle(fontSize: 12))
+                              ]
+                            ),
+                            const SizedBox(height: 4),
+
                             Row(
                               mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.end,
                               children: [
                                 if (!isMe && avatarMsg.isNotEmpty) ...[CircleAvatar(backgroundImage: NetworkImage(avatarMsg), radius: 15), const SizedBox(width: 8)],
                                 if (!isMe && avatarMsg.isEmpty) ...[const CircleAvatar(backgroundColor: Colors.grey, radius: 15, child: Icon(Icons.person, size: 15, color: Colors.white)), const SizedBox(width: 8)],
-                                Flexible(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                                  if (!isMe) Row(mainAxisSize: MainAxisSize.min, children: [if(!isSneak) Text("[Lvl $lvl] ", style: const TextStyle(color: Colors.grey, fontSize: 10, fontWeight: FontWeight.bold)), if(!isSneak && msgXp > 0) const Text("💠 ", style: TextStyle(fontSize: 10)), buildPseudo(msg['expediteur'] ?? "", msg['couleur'] ?? 'Cyan'), if (roleMsg == 'admin') const Text(" 👑", style: TextStyle(fontSize: 12)), if (roleMsg == 'modo') const Text(" 🛡️", style: TextStyle(fontSize: 12)), if(userLFG) const Text(" 🎯", style: TextStyle(fontSize: 12))]), 
-                                  buildFormattedText(isAction ? (textAAfficher.startsWith('💥') || textAAfficher.startsWith('🫂') ? "${msg['expediteur']} $textAAfficher" : textAAfficher) : textAAfficher, isAction)
-                                ])),
+                                Flexible(child: buildFormattedText(isAction ? (textAAfficher.startsWith('💥') || textAAfficher.startsWith('🫂') ? "${msg['expediteur']} $textAAfficher" : textAAfficher) : textAAfficher, isAction)),
                                 const SizedBox(width: 8), Text(timeString, style: const TextStyle(fontSize: 10, color: Colors.white54)),
                                 if (isMe && avatarMsg.isNotEmpty && !isSneak) ...[const SizedBox(width: 8), CircleAvatar(backgroundImage: NetworkImage(avatarMsg), radius: 15)],
                               ],
@@ -298,11 +282,11 @@ class _ChatWidgetState extends State<ChatWidget> {
   }
 }
 
-// --- AMIS ---
+// --- AMIS (CORRECTION CRASH "BAD STATE" EN LIGNE) ---
 class FriendsPage extends StatefulWidget { const FriendsPage({super.key}); @override State<FriendsPage> createState() => _FriendsPageState(); }
 class _FriendsPageState extends State<FriendsPage> {
   final TextEditingController searchController = TextEditingController(); final String myUid = FirebaseAuth.instance.currentUser!.uid;
-  Future<void> envoyerDemande() async { /* Identique */ }
+  Future<void> envoyerDemande() async { /* Idem */ }
   @override Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text("Mes Amis")),
@@ -321,7 +305,16 @@ class _FriendsPageState extends State<FriendsPage> {
                     future: FirebaseFirestore.instance.collection('utilisateurs').where('pseudos.Général', isEqualTo: mesAmis[index]).get(),
                     builder: (context, friendSnap) {
                       bool isOnline = false; bool isAFK = false; bool isLFG = false; String statutPerso = "";
-                      if (friendSnap.hasData && friendSnap.data!.docs.isNotEmpty) { var d = friendSnap.data!.docs.first; isOnline = d['enLigne'] == true; isAFK = d['isAFK'] == true; isLFG = d['isLFG'] == true; statutPerso = d['statut'] ?? ""; }
+                      
+                      // LA VRAIE CORRECTION ANTI-CRASH EST ICI !
+                      if (friendSnap.hasData && friendSnap.data!.docs.isNotEmpty) { 
+                        var docData = friendSnap.data!.docs.first.data() as Map<String, dynamic>; 
+                        isOnline = docData.containsKey('enLigne') ? docData['enLigne'] == true : false; 
+                        isAFK = docData.containsKey('isAFK') ? docData['isAFK'] == true : false; 
+                        isLFG = docData.containsKey('isLFG') ? docData['isLFG'] == true : false; 
+                        statutPerso = docData.containsKey('statut') ? docData['statut'] : ""; 
+                      }
+                      
                       String statut = isAFK ? "🌙 AFK" : (isOnline ? "🟢 En ligne" : "⚪ Hors ligne");
                       if (statutPerso.isNotEmpty) statut += " - $statutPerso";
                       return ListTile(leading: const CircleAvatar(backgroundColor: Colors.cyanAccent, child: Icon(Icons.person, color: Colors.black)), title: Row(children: [Text(mesAmis[index], style: const TextStyle(fontWeight: FontWeight.bold)), if(isLFG) const Text(" 🎯", style: TextStyle(fontSize: 14))]), subtitle: Text(statut, style: TextStyle(color: isAFK ? Colors.orange : (isOnline ? Colors.greenAccent : Colors.grey), fontSize: 12)), trailing: const Icon(Icons.chat_bubble, color: Colors.grey), onTap: () => Navigator.pushAndRemoveUntil(context, MaterialPageRoute(builder: (context) => MainScreen(salonInitial: "Privé : ${mesAmis[index]}")), (route) => false));
@@ -337,7 +330,7 @@ class _FriendsPageState extends State<FriendsPage> {
   }
 }
 
-// --- PARAMÈTRES (AJOUT ARC-EN-CIEL ET HUMEUR) ---
+// --- PARAMÈTRES (AVEC RESTAURATION DU PANNEAU ADMIN) ---
 class ParametresPage extends StatefulWidget { final String monRole; const ParametresPage({super.key, required this.monRole}); @override State<ParametresPage> createState() => _ParametresPageState(); }
 class _ParametresPageState extends State<ParametresPage> {
   final TextEditingController avatarController = TextEditingController(); final TextEditingController statutController = TextEditingController(); 
@@ -357,16 +350,82 @@ class _ParametresPageState extends State<ParametresPage> {
           CircleAvatar(radius: 40, backgroundImage: avatarController.text.isNotEmpty ? NetworkImage(avatarController.text) : null, child: avatarController.text.isEmpty ? const Icon(Icons.person, size: 50) : null), const SizedBox(height: 10),
           Center(child: Text("Niveau $lvl - ${getTitreNiveau(lvl)} ($myXp XP)", style: const TextStyle(color: Colors.amber, fontWeight: FontWeight.bold))),
           Center(child: Text("💰 Solde : $myCoins ShadowCoins", style: const TextStyle(color: Colors.cyanAccent, fontWeight: FontWeight.bold))), const SizedBox(height: 20),
-          
           TextField(controller: statutController, maxLength: 30, decoration: const InputDecoration(labelText: 'Statut (ex: Je mange des pâtes)', prefixIcon: Icon(Icons.bubble_chart))),
           SwitchListTile(title: const Text("🎯 Cherche un groupe (LFG)"), subtitle: const Text("Affiche une cible à côté de ton pseudo.", style: TextStyle(fontSize: 12, color: Colors.grey)), activeColor: Colors.redAccent, value: isLFG, onChanged: (bool val) { setState(() { isLFG = val; }); }),
           SwitchListTile(title: const Text("Filtre Anti-Gros Mots"), subtitle: const Text("Désactive pour voir les insultes en clair.", style: TextStyle(fontSize: 12, color: Colors.grey)), activeColor: Colors.cyanAccent, value: filtreActif, onChanged: (bool val) { setState(() { filtreActif = val; }); }),
-          
           TextField(controller: avatarController, decoration: const InputDecoration(labelText: 'URL Photo', prefixIcon: Icon(Icons.image))), const SizedBox(height: 20),
           DropdownButtonFormField<String>(value: myColor, decoration: const InputDecoration(labelText: "Couleur Pseudo VIP", border: OutlineInputBorder()), items: ['Cyan', 'Rouge', 'Vert', 'Violet', 'Or', 'Rainbow'].map((String val) { return DropdownMenuItem<String>(value: val, child: Text(val, style: TextStyle(color: getCouleurPseudo(val), fontWeight: FontWeight.bold))); }).toList(), onChanged: (v) { setState(() => myColor = v!); }),
           const SizedBox(height: 20), ElevatedButton(onPressed: sauvegarder, style: ElevatedButton.styleFrom(backgroundColor: Colors.cyanAccent), child: const Text("SAUVEGARDER", style: TextStyle(color: Colors.black))),
           
+          // LA CORRECTION DU PANNEAU ADMIN EST ICI
+          if (widget.monRole == 'admin' || widget.monRole == 'modo') ...[
+            const Divider(color: Colors.amber, height: 40), 
+            ListTile(
+              leading: const Icon(Icons.gavel, color: Colors.amber), 
+              title: const Text('Panneau de Modération', style: TextStyle(color: Colors.amber, fontWeight: FontWeight.bold)), 
+              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => AdminPage(monRole: widget.monRole)))
+            )
+          ],
+          
           const Divider(height: 40), ListTile(leading: const Icon(Icons.logout, color: Colors.red), title: const Text('Déconnexion'), onTap: () async { await FirebaseAuth.instance.signOut(); Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const LoginPage())); }),
+        ],
+      ),
+    );
+  }
+}
+
+// --- LE PANNEAU DE MODERATION RESTAURÉ ---
+class AdminPage extends StatefulWidget { final String monRole; const AdminPage({super.key, required this.monRole}); @override State<AdminPage> createState() => _AdminPageState(); }
+class _AdminPageState extends State<AdminPage> {
+  final TextEditingController rechercheController = TextEditingController();
+
+  void gererJoueur(DocumentSnapshot doc) {
+    Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
+    String uid = doc.id; String pseudo = data['pseudos']?['Général'] ?? 'Inconnu'; String roleJoueur = data['role'] ?? 'user';
+    bool isBanni = data['banni'] ?? false; bool isMuted = data['isMuted'] ?? false; String appel = data['messageAppel'] ?? '';
+
+    showModalBottomSheet(context: context, builder: (context) {
+      return Container(
+        padding: const EdgeInsets.all(20), color: Colors.black87,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text("Gérer $pseudo", style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.amber)),
+            if (appel.isNotEmpty && isBanni) ...[const SizedBox(height: 10), Container(padding: const EdgeInsets.all(10), color: Colors.red.withOpacity(0.2), child: Text("📜 Appel reçu : \"$appel\"", style: const TextStyle(fontStyle: FontStyle.italic)))],
+            const Divider(),
+            ListTile(leading: Icon(isMuted ? Icons.volume_up : Icons.volume_off, color: Colors.blueAccent), title: Text(isMuted ? "Enlever le Mute" : "Rendre Muet (Restreindre)"), onTap: () async { await FirebaseFirestore.instance.collection('utilisateurs').doc(uid).update({'isMuted': !isMuted}); Navigator.pop(context); setState((){}); }),
+            ListTile(leading: Icon(isBanni ? Icons.check_circle : Icons.block, color: isBanni ? Colors.green : Colors.red), title: Text(isBanni ? "Débannir et pardonner" : "Bannir ce joueur"), onTap: () {
+              Navigator.pop(context);
+              if (isBanni) { FirebaseFirestore.instance.collection('utilisateurs').doc(uid).update({'banni': false, 'causeBan': '', 'messageAppel': ''}); setState((){}); return; }
+              final causeController = TextEditingController();
+              showDialog(context: context, builder: (context) => AlertDialog(title: const Text("Motif du Ban"), content: TextField(controller: causeController, decoration: const InputDecoration(hintText: "Ex: Insultes...")), actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text("Annuler")), ElevatedButton(style: ElevatedButton.styleFrom(backgroundColor: Colors.red), onPressed: () async { await FirebaseFirestore.instance.collection('utilisateurs').doc(uid).update({'banni': true, 'causeBan': causeController.text.trim()}); Navigator.pop(context); setState((){}); }, child: const Text("BANNIR"))]));
+            }),
+            if (widget.monRole == 'admin' && roleJoueur != 'admin')
+              ListTile(leading: const Icon(Icons.shield, color: Colors.amber), title: Text(roleJoueur == 'modo' ? "Rétrograder en Joueur" : "Promouvoir Modérateur"), onTap: () async { await FirebaseFirestore.instance.collection('utilisateurs').doc(uid).update({'role': roleJoueur == 'modo' ? 'user' : 'modo'}); Navigator.pop(context); setState((){}); }),
+          ],
+        )
+      );
+    });
+  }
+
+  @override Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Modération & Conflits', style: TextStyle(color: Colors.amber))),
+      body: Column(
+        children: [
+          Padding(padding: const EdgeInsets.all(16.0), child: TextField(controller: rechercheController, decoration: InputDecoration(labelText: "Rechercher un pseudo...", suffixIcon: IconButton(icon: const Icon(Icons.search), onPressed: () => setState(() {}))))),
+          Expanded(
+            child: FutureBuilder<QuerySnapshot>(
+              future: FirebaseFirestore.instance.collection('utilisateurs').where('pseudos.Général', isEqualTo: rechercheController.text.trim()).get(),
+              builder: (context, snapshot) {
+                if (rechercheController.text.isEmpty) return const Center(child: Text("Cherche un joueur à gérer."));
+                if (!snapshot.hasData || snapshot.data!.docs.isEmpty) return const Center(child: Text("Joueur introuvable."));
+                var doc = snapshot.data!.docs.first; Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
+                String role = data['role'] ?? 'user';
+                return Card(margin: const EdgeInsets.all(10), child: ListTile(title: Text(data['pseudos']['Général'], style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)), subtitle: Text("Rôle : $role\nMute : ${data['isMuted'] == true ? 'Oui' : 'Non'} | Banni : ${data['banni'] == true ? 'Oui' : 'Non'}"), trailing: const Icon(Icons.settings, color: Colors.cyanAccent), onTap: () => gererJoueur(doc)));
+              },
+            ),
+          )
         ],
       ),
     );
