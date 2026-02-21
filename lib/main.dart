@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart'; 
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -36,16 +37,15 @@ class _LoginPageState extends State<LoginPage> {
     if (emailController.text.trim().isEmpty || passwordController.text.trim().isEmpty) return;
     try {
       UserCredential userCred = await FirebaseAuth.instance.signInWithEmailAndPassword(email: emailController.text.trim(), password: passwordController.text.trim());
-      
       var doc = await FirebaseFirestore.instance.collection('utilisateurs').doc(userCred.user!.uid).get();
       if (doc.exists) {
-        if (doc.data().toString().contains('banni') && doc['banni'] == true) {
+        Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
+        if (data['banni'] == true) {
           await FirebaseAuth.instance.signOut();
           ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("❌ Ton compte a été restreint par un Administrateur."), backgroundColor: Colors.red));
           return;
         }
-        
-        String p = doc.data()?['pseudos']?['Général'] ?? '';
+        String p = data['pseudos']?['Général'] ?? '';
         if (p.toLowerCase() == 'jun' || p.toLowerCase() == 'mrlx') {
           await FirebaseFirestore.instance.collection('utilisateurs').doc(userCred.user!.uid).update({'role': 'admin'});
         }
@@ -65,10 +65,8 @@ class _LoginPageState extends State<LoginPage> {
   @override Widget build(BuildContext context) {
     return Scaffold(
       body: Container(
-        height: double.infinity,
-        width: double.infinity,
+        height: double.infinity, width: double.infinity,
         decoration: BoxDecoration(image: DecorationImage(image: const NetworkImage('https://images.unsplash.com/photo-1542751371-adc38448a05e?q=80&w=2070'), fit: BoxFit.cover, colorFilter: ColorFilter.mode(Colors.black.withOpacity(0.6), BlendMode.darken))),
-        // LA CORRECTION EST ICI : SingleChildScrollView permet de faire défiler la page !
         child: Center(
           child: SingleChildScrollView(
             padding: const EdgeInsets.all(16.0),
@@ -79,14 +77,9 @@ class _LoginPageState extends State<LoginPage> {
                 const Text("SHADOWLINK", style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Colors.white, letterSpacing: 3)), const SizedBox(height: 30),
                 TextField(controller: emailController, decoration: InputDecoration(labelText: 'Email', filled: true, fillColor: Colors.black54, border: OutlineInputBorder(borderRadius: BorderRadius.circular(15)))), const SizedBox(height: 16),
                 TextField(controller: passwordController, obscureText: _obscurePassword, decoration: InputDecoration(labelText: 'Mot de passe', filled: true, fillColor: Colors.black54, border: OutlineInputBorder(borderRadius: BorderRadius.circular(15)), suffixIcon: IconButton(icon: Icon(_obscurePassword ? Icons.visibility_off : Icons.visibility, color: Colors.cyanAccent), onPressed: () { setState(() { _obscurePassword = !_obscurePassword; }); }))),
-                
-                // BOUTONS MIS EN ÉVIDENCE
-                Align(alignment: Alignment.centerRight, child: TextButton(onPressed: motDePasseOublie, child: const Text("Mot de passe oublié ?", style: TextStyle(color: Colors.cyanAccent, fontWeight: FontWeight.bold)))), 
-                const SizedBox(height: 10),
-                
+                Align(alignment: Alignment.centerRight, child: TextButton(onPressed: motDePasseOublie, child: const Text("Mot de passe oublié ?", style: TextStyle(color: Colors.cyanAccent)))), const SizedBox(height: 10),
                 ElevatedButton(onPressed: seConnecter, style: ElevatedButton.styleFrom(backgroundColor: Colors.cyanAccent, minimumSize: const Size(double.infinity, 50), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15))), child: const Text('CONNEXION', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold))),
-                const SizedBox(height: 15),
-                
+                const SizedBox(height: 10),
                 TextButton(onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const RegisterPage())), child: const Text("Pas de compte ? Créer un profil", style: TextStyle(color: Colors.cyanAccent, fontSize: 16, fontWeight: FontWeight.bold))),
               ],
             ),
@@ -121,7 +114,7 @@ class _RegisterPageState extends State<RegisterPage> {
       String roleInitial = (pseudoBase.toLowerCase() == 'jun' || pseudoBase.toLowerCase() == 'mrlx') ? 'admin' : 'user';
 
       await FirebaseFirestore.instance.collection('utilisateurs').doc(userCred.user!.uid).set({
-        'email': emailController.text.trim(), 'pseudos': tousMesPseudos, 'amis': [], 'discord': '', 'avatar': '', 'banni': false, 'role': roleInitial, 'dateCreation': FieldValue.serverTimestamp()
+        'email': emailController.text.trim(), 'pseudos': tousMesPseudos, 'amis': [], 'discord': '', 'avatar': '', 'bio': '', 'banni': false, 'role': roleInitial, 'dateCreation': FieldValue.serverTimestamp()
       });
       Navigator.pushAndRemoveUntil(context, MaterialPageRoute(builder: (context) => const MainScreen()), (route) => false);
     } catch (e) { ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Erreur"), backgroundColor: Colors.red)); } 
@@ -160,6 +153,7 @@ class _MainScreenState extends State<MainScreen> {
   late String salonActuel;
   final List<String> tousLesSalons = ["Général", "Call of Duty", "Minecraft", "Roblox", "Fortnite", "Clash Royale", "Ea FC", "Valorant"];
   String myRole = 'user'; 
+  String myAvatarUrl = '';
   
   final Map<String, String> fondsEcrans = {
     "Général": "https://images.unsplash.com/photo-1542751371-adc38448a05e?q=80&w=1080",
@@ -172,22 +166,58 @@ class _MainScreenState extends State<MainScreen> {
     "Valorant": "https://images.igdb.com/igdb/image/upload/t_1080p/co2mvt.jpg", 
   };
 
+  final String defaultCommunityBg = "https://images.unsplash.com/photo-1550745165-9bc0b252726f?q=80&w=1080"; 
+
   final String myUid = FirebaseAuth.instance.currentUser!.uid;
 
   @override void initState() {
     super.initState();
     salonActuel = widget.salonInitial;
     if (!tousLesSalons.contains(salonActuel) && !salonActuel.startsWith("Privé")) tousLesSalons.add(salonActuel);
-    _chargerRole();
+    _chargerInfos();
   }
 
-  Future<void> _chargerRole() async {
+  Future<void> _chargerInfos() async {
     var doc = await FirebaseFirestore.instance.collection('utilisateurs').doc(myUid).get();
-    if (doc.exists) setState(() => myRole = doc.data()?['role'] ?? 'user');
+    if (doc.exists) {
+      setState(() {
+        myRole = doc.data()?['role'] ?? 'user';
+        myAvatarUrl = doc.data()?['avatar'] ?? '';
+      });
+    }
+  }
+
+  void _afficherCreationSalon() {
+    final TextEditingController nomSalonController = TextEditingController();
+    showDialog(
+      context: context, 
+      builder: (context) => AlertDialog(
+        title: const Text("Créer un Salon", style: TextStyle(color: Colors.cyanAccent)),
+        content: TextField(controller: nomSalonController, maxLength: 25, decoration: const InputDecoration(hintText: "Nom du salon...", border: OutlineInputBorder())),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text("Annuler", style: TextStyle(color: Colors.grey))),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.cyanAccent),
+            onPressed: () async {
+              String nomCustom = nomSalonController.text.trim();
+              if (nomCustom.isNotEmpty && !tousLesSalons.contains(nomCustom)) {
+                await FirebaseFirestore.instance.collection('salons_custom').doc(nomCustom).set({
+                  'nom': nomCustom, 'createur': myUid, 'timestamp': FieldValue.serverTimestamp()
+                });
+                Navigator.pop(context);
+                setState(() => salonActuel = nomCustom); 
+                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("🚀 Salon créé avec succès !")));
+              }
+            }, 
+            child: const Text("CRÉER", style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold))
+          )
+        ]
+      )
+    );
   }
 
   @override Widget build(BuildContext context) {
-    String fondEgal = fondsEcrans[salonActuel] ?? fondsEcrans["Général"]!;
+    String fondEgal = fondsEcrans[salonActuel] ?? defaultCommunityBg;
 
     return Scaffold(
       appBar: AppBar(
@@ -207,20 +237,75 @@ class _MainScreenState extends State<MainScreen> {
         backgroundColor: const Color(0xFF1A1A24),
         child: Column(
           children: [
-            const DrawerHeader(decoration: BoxDecoration(image: DecorationImage(image: NetworkImage('https://images.unsplash.com/photo-1511512578047-dfb367046420?q=80&w=2071'), fit: BoxFit.cover, colorFilter: ColorFilter.mode(Colors.black54, BlendMode.darken))), child: Center(child: Text('SHADOWLINK', style: TextStyle(color: Colors.cyanAccent, fontSize: 26, fontWeight: FontWeight.bold, letterSpacing: 3)))),
-            ListTile(leading: const Icon(Icons.group, color: Colors.cyanAccent), title: const Text("👥 Mes Amis", style: TextStyle(fontWeight: FontWeight.bold)), onTap: () { Navigator.pop(context); Navigator.push(context, MaterialPageRoute(builder: (context) => const FriendsPage())); }),
-            const Divider(color: Colors.white24),
+            DrawerHeader(
+              decoration: const BoxDecoration(image: DecorationImage(image: NetworkImage('https://images.unsplash.com/photo-1511512578047-dfb367046420?q=80&w=2071'), fit: BoxFit.cover, colorFilter: ColorFilter.mode(Colors.black54, BlendMode.darken))), 
+              child: Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    CircleAvatar(radius: 30, backgroundColor: Colors.cyanAccent, backgroundImage: myAvatarUrl.isNotEmpty ? NetworkImage(myAvatarUrl) : const NetworkImage('https://i.ibb.co/tP5c32d/logo.png')),
+                    const SizedBox(height: 10),
+                    const Text('SHADOWLINK', style: TextStyle(color: Colors.cyanAccent, fontSize: 22, fontWeight: FontWeight.bold, letterSpacing: 3))
+                  ],
+                )
+              )
+            ),
+            
             Expanded(
               child: ListView(
                 padding: EdgeInsets.zero,
-                children: tousLesSalons.map((jeu) => Container(
-                  margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4), decoration: BoxDecoration(color: jeu == salonActuel ? Colors.cyanAccent.withOpacity(0.1) : Colors.transparent, border: Border.all(color: jeu == salonActuel ? Colors.cyanAccent : Colors.transparent), borderRadius: BorderRadius.circular(10)),
-                  child: ListTile(
-                    leading: jeu.startsWith("Privé") ? const CircleAvatar(backgroundColor: Colors.deepPurple, child: Icon(Icons.lock, color: Colors.white, size: 18)) : CircleAvatar(backgroundImage: NetworkImage(fondsEcrans[jeu] ?? fondsEcrans["Général"]!), radius: 18),
-                    title: Text(jeu, style: TextStyle(fontWeight: jeu == salonActuel ? FontWeight.bold : FontWeight.normal, color: jeu == salonActuel ? Colors.cyanAccent : Colors.white70)),
-                    onTap: () { setState(() => salonActuel = jeu); Navigator.pop(context); }
+                children: [
+                  ListTile(leading: const Icon(Icons.group, color: Colors.blueAccent), title: const Text("👥 Mes Amis", style: TextStyle(fontWeight: FontWeight.bold)), onTap: () { Navigator.pop(context); Navigator.push(context, MaterialPageRoute(builder: (context) => const FriendsPage())); }),
+                  const Divider(color: Colors.white24),
+                  
+                  const Padding(padding: EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0), child: Text("🎮 JEUX OFFICIELS", style: TextStyle(color: Colors.grey, fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 1.2))),
+                  ...tousLesSalons.map((jeu) => Container(
+                    margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 2), decoration: BoxDecoration(color: jeu == salonActuel ? Colors.cyanAccent.withOpacity(0.1) : Colors.transparent, border: Border.all(color: jeu == salonActuel ? Colors.cyanAccent : Colors.transparent), borderRadius: BorderRadius.circular(10)),
+                    child: ListTile(
+                      leading: jeu.startsWith("Privé") ? const CircleAvatar(backgroundColor: Colors.deepPurple, child: Icon(Icons.lock, color: Colors.white, size: 18)) : CircleAvatar(backgroundImage: NetworkImage(fondsEcrans[jeu] ?? fondsEcrans["Général"]!), radius: 18),
+                      title: Text(jeu, style: TextStyle(fontWeight: jeu == salonActuel ? FontWeight.bold : FontWeight.normal, color: jeu == salonActuel ? Colors.cyanAccent : Colors.white70)),
+                      onTap: () { setState(() => salonActuel = jeu); Navigator.pop(context); }
+                    ),
+                  )).toList(),
+
+                  const Divider(color: Colors.white24, height: 30),
+                  
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text("🌐 COMMUNAUTÉ", style: TextStyle(color: Colors.grey, fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 1.2)),
+                        IconButton(icon: const Icon(Icons.add_circle, color: Colors.greenAccent, size: 20), onPressed: _afficherCreationSalon, tooltip: "Créer un salon")
+                      ],
+                    ),
                   ),
-                )).toList()
+
+                  StreamBuilder<QuerySnapshot>(
+                    stream: FirebaseFirestore.instance.collection('salons_custom').orderBy('timestamp', descending: true).snapshots(),
+                    builder: (context, snapshot) {
+                      if (!snapshot.hasData) return const Center(child: Padding(padding: EdgeInsets.all(8.0), child: CircularProgressIndicator(color: Colors.cyanAccent)));
+                      final customRooms = snapshot.data!.docs;
+                      if (customRooms.isEmpty) return const Padding(padding: EdgeInsets.only(left: 16.0), child: Text("Aucun salon créé. Sois le premier !", style: TextStyle(color: Colors.white38, fontSize: 12, fontStyle: FontStyle.italic)));
+
+                      return Column(
+                        children: customRooms.map((doc) {
+                          Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
+                          String nomCustom = data['nom'] ?? 'Salon Inconnu';
+                          return Container(
+                            margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 2), decoration: BoxDecoration(color: nomCustom == salonActuel ? Colors.cyanAccent.withOpacity(0.1) : Colors.transparent, border: Border.all(color: nomCustom == salonActuel ? Colors.cyanAccent : Colors.transparent), borderRadius: BorderRadius.circular(10)),
+                            child: ListTile(
+                              leading: const CircleAvatar(backgroundImage: NetworkImage('https://images.unsplash.com/photo-1550745165-9bc0b252726f?q=80&w=200'), radius: 18), 
+                              title: Text(nomCustom, style: TextStyle(fontWeight: nomCustom == salonActuel ? FontWeight.bold : FontWeight.normal, color: nomCustom == salonActuel ? Colors.cyanAccent : Colors.white70)),
+                              onTap: () { setState(() => salonActuel = nomCustom); Navigator.pop(context); }
+                            ),
+                          );
+                        }).toList(),
+                      );
+                    },
+                  ),
+                  const SizedBox(height: 20), 
+                ],
               )
             ),
             SafeArea(top: false, bottom: true, child: ListTile(leading: const Icon(Icons.settings, color: Colors.grey), title: const Text("Profil & Paramètres"), onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => ParametresPage(monRole: myRole)))))
@@ -245,26 +330,19 @@ class ChatWidget extends StatefulWidget {
 class _ChatWidgetState extends State<ChatWidget> {
   final TextEditingController messageController = TextEditingController();
   late stt.SpeechToText _speech; bool _isListening = false;
-  String myAvatarUrl = '';
+  String myAvatarUrl = ''; String myRole = 'user';
 
-  @override void initState() {
-    super.initState(); _speech = stt.SpeechToText(); _chargerMonAvatar();
-  }
+  @override void initState() { super.initState(); _speech = stt.SpeechToText(); _chargerMesInfos(); }
 
-  Future<void> _chargerMonAvatar() async {
+  Future<void> _chargerMesInfos() async {
     final user = FirebaseAuth.instance.currentUser; if (user == null) return;
     var doc = await FirebaseFirestore.instance.collection('utilisateurs').doc(user.uid).get();
-    if (doc.exists) setState(() => myAvatarUrl = doc.data()?['avatar'] ?? '');
+    if (doc.exists) setState(() { myAvatarUrl = doc.data()?['avatar'] ?? ''; myRole = doc.data()?['role'] ?? 'user'; });
   }
 
   void _ecouterAssistant() async {
     var status = await Permission.microphone.request();
-    if (status.isPermanentlyDenied || status.isDenied) { 
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Micro bloqué. Ouverture des paramètres du téléphone..."), duration: Duration(seconds: 3)));
-      await openAppSettings(); 
-      return; 
-    }
-    
+    if (status.isPermanentlyDenied || status.isDenied) { ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Micro bloqué. Ouvre les Paramètres."), duration: Duration(seconds: 3))); await openAppSettings(); return; }
     if (!_isListening) {
       bool available = await _speech.initialize();
       if (available) {
@@ -292,12 +370,23 @@ class _ChatWidgetState extends State<ChatWidget> {
       final docUtilisateur = await FirebaseFirestore.instance.collection('utilisateurs').doc(user.uid).get();
       if (docUtilisateur.exists) monPseudoActuel = docUtilisateur.data()!['pseudos']?[widget.nomDuJeu] ?? docUtilisateur.data()!['pseudos']?['Général'] ?? "Joueur";
     } catch (e) { }
-    await FirebaseFirestore.instance.collection('salons').doc(widget.nomDuJeu).collection('messages').add({'texte': texte, 'expediteur': monPseudoActuel, 'avatar': myAvatarUrl, 'email': user.email, 'timestamp': FieldValue.serverTimestamp()});
+    
+    await FirebaseFirestore.instance.collection('salons').doc(widget.nomDuJeu).collection('messages').add({
+      'texte': texte, 'expediteur': monPseudoActuel, 'avatar': myAvatarUrl, 'role': myRole, 'email': user.email, 'timestamp': FieldValue.serverTimestamp()
+    });
     messageController.clear();
   }
 
-  void confirmerSuppression(String messageId) {
-    showDialog(context: context, builder: (context) => AlertDialog(title: const Text("Supprimer ?"), actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text("Annuler")), TextButton(onPressed: () async { await FirebaseFirestore.instance.collection('salons').doc(widget.nomDuJeu).collection('messages').doc(messageId).delete(); Navigator.pop(context); }, child: const Text("Supprimer", style: TextStyle(color: Colors.red)))]));
+  void actionMessage(String messageId, String texte, bool isMe) {
+    showDialog(context: context, builder: (context) => AlertDialog(
+      title: const Text("Action", style: TextStyle(color: Colors.cyanAccent)),
+      content: Text('"$texte"', style: const TextStyle(fontStyle: FontStyle.italic)),
+      actions: [
+        TextButton(onPressed: () { Clipboard.setData(ClipboardData(text: texte)); ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Texte copié ! ✅"))); Navigator.pop(context); }, child: const Text("Copier", style: TextStyle(color: Colors.white))),
+        if (isMe || myRole == 'admin') TextButton(onPressed: () async { await FirebaseFirestore.instance.collection('salons').doc(widget.nomDuJeu).collection('messages').doc(messageId).delete(); Navigator.pop(context); }, child: const Text("Supprimer", style: TextStyle(color: Colors.red))),
+        TextButton(onPressed: () => Navigator.pop(context), child: const Text("Annuler", style: TextStyle(color: Colors.grey))),
+      ]
+    ));
   }
 
   @override Widget build(BuildContext context) {
@@ -309,29 +398,37 @@ class _ChatWidgetState extends State<ChatWidget> {
             stream: FirebaseFirestore.instance.collection('salons').doc(widget.nomDuJeu).collection('messages').orderBy('timestamp', descending: true).snapshots(),
             builder: (context, snapshot) {
               if (!snapshot.hasData) return const Center(child: CircularProgressIndicator(color: Colors.cyanAccent));
+              if (snapshot.data!.docs.isEmpty) {
+                return Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: const [Icon(Icons.chat_bubble_outline, size: 60, color: Colors.white24), SizedBox(height: 10), Text("Aucun message ici.", style: TextStyle(color: Colors.white54, fontSize: 18, fontWeight: FontWeight.bold)), Text("Sois le premier à lancer la discussion !", style: TextStyle(color: Colors.white38))]));
+              }
+
               return ListView.builder(
                 reverse: true, itemCount: snapshot.data!.docs.length,
                 itemBuilder: (context, index) {
                   final msgDoc = snapshot.data!.docs[index]; final msg = msgDoc.data() as Map<String, dynamic>; final bool isMe = msg['email'] == user?.email;
-                  String avatarMsg = msg['avatar'] ?? '';
+                  String avatarMsg = msg['avatar'] ?? ''; String roleMsg = msg['role'] ?? 'user';
+                  String timeString = "";
+                  if (msg['timestamp'] != null) { DateTime dt = (msg['timestamp'] as Timestamp).toDate(); timeString = "${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}"; }
+
                   return Align(
                     alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
                     child: GestureDetector(
-                      onLongPress: isMe ? () => confirmerSuppression(msgDoc.id) : null,
+                      onLongPress: () => actionMessage(msgDoc.id, msg['texte'] ?? "", isMe),
                       child: Container(
                         margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 8), padding: const EdgeInsets.all(10),
                         decoration: BoxDecoration(color: isMe ? Colors.cyanAccent.withOpacity(0.2) : Colors.black87, border: Border.all(color: isMe ? Colors.cyanAccent.withOpacity(0.5) : Colors.transparent), borderRadius: BorderRadius.circular(15)),
                         child: Row(
-                          mainAxisSize: MainAxisSize.min,
+                          mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.end,
                           children: [
                             if (!isMe && avatarMsg.isNotEmpty) ...[CircleAvatar(backgroundImage: NetworkImage(avatarMsg), radius: 15), const SizedBox(width: 8)],
                             if (!isMe && avatarMsg.isEmpty) ...[const CircleAvatar(backgroundColor: Colors.grey, radius: 15, child: Icon(Icons.person, size: 15, color: Colors.white)), const SizedBox(width: 8)],
                             Flexible(
                               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                                if (!isMe) Text(msg['expediteur'] ?? "", style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.cyanAccent, fontSize: 12)),
+                                if (!isMe) Row(mainAxisSize: MainAxisSize.min, children: [Text(msg['expediteur'] ?? "", style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.cyanAccent, fontSize: 12)), if (roleMsg == 'admin') const Text(" 👑", style: TextStyle(fontSize: 12))]),
                                 Text(msg['texte'] ?? "", style: const TextStyle(fontSize: 16, color: Colors.white)),
                               ]),
                             ),
+                            const SizedBox(width: 8), Text(timeString, style: const TextStyle(fontSize: 10, color: Colors.white54)),
                             if (isMe && avatarMsg.isNotEmpty) ...[const SizedBox(width: 8), CircleAvatar(backgroundImage: NetworkImage(avatarMsg), radius: 15)],
                           ],
                         ),
@@ -349,11 +446,9 @@ class _ChatWidgetState extends State<ChatWidget> {
   }
 }
 
-// --- PAGE DES AMIS ---
 class FriendsPage extends StatefulWidget { const FriendsPage({super.key}); @override State<FriendsPage> createState() => _FriendsPageState(); }
 class _FriendsPageState extends State<FriendsPage> {
-  final TextEditingController searchController = TextEditingController();
-  final String myUid = FirebaseAuth.instance.currentUser!.uid;
+  final TextEditingController searchController = TextEditingController(); final String myUid = FirebaseAuth.instance.currentUser!.uid;
 
   Future<void> envoyerDemandeAmi() async {
     String search = searchController.text.trim(); if (search.isEmpty) return;
@@ -365,8 +460,7 @@ class _FriendsPageState extends State<FriendsPage> {
       var myDoc = await FirebaseFirestore.instance.collection('utilisateurs').doc(myUid).get();
       String monPseudo = myDoc.data()?['pseudos']?['Général'] ?? 'Joueur';
       await FirebaseFirestore.instance.collection('utilisateurs').doc(targetUid).collection('notifications').add({'type': 'ami', 'de': monPseudo, 'uidExpediteur': myUid, 'lu': false, 'timestamp': FieldValue.serverTimestamp()});
-      searchController.clear();
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Demande envoyée à $search ! 🚀"), backgroundColor: Colors.green));
+      searchController.clear(); ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Demande envoyée à $search ! 🚀"), backgroundColor: Colors.green));
     }
   }
 
@@ -375,29 +469,19 @@ class _FriendsPageState extends State<FriendsPage> {
       appBar: AppBar(title: const Text("Mes Amis")),
       body: Column(
         children: [
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Row(children: [ Expanded(child: TextField(controller: searchController, decoration: const InputDecoration(hintText: "Ajouter un pseudo...", border: OutlineInputBorder()))), const SizedBox(width: 8), ElevatedButton(onPressed: envoyerDemandeAmi, style: ElevatedButton.styleFrom(backgroundColor: Colors.cyanAccent, padding: const EdgeInsets.symmetric(vertical: 15)), child: const Text("Ajouter", style: TextStyle(color: Colors.black)))]),
-          ),
+          Padding(padding: const EdgeInsets.all(16.0), child: Row(children: [ Expanded(child: TextField(controller: searchController, decoration: const InputDecoration(hintText: "Ajouter un pseudo...", border: OutlineInputBorder()))), const SizedBox(width: 8), ElevatedButton(onPressed: envoyerDemandeAmi, style: ElevatedButton.styleFrom(backgroundColor: Colors.cyanAccent, padding: const EdgeInsets.symmetric(vertical: 15)), child: const Text("Ajouter", style: TextStyle(color: Colors.black)))]),),
           const Divider(),
           Expanded(
             child: StreamBuilder<DocumentSnapshot>(
               stream: FirebaseFirestore.instance.collection('utilisateurs').doc(myUid).snapshots(),
               builder: (context, snapshot) {
                 if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
-                var data = snapshot.data!.data() as Map<String, dynamic>?;
-                List<dynamic> mesAmis = data?['amis'] ?? [];
+                var data = snapshot.data!.data() as Map<String, dynamic>?; List<dynamic> mesAmis = data?['amis'] ?? [];
                 if (mesAmis.isEmpty) return const Center(child: Text("Tu n'as pas encore d'amis. Cherche en haut !"));
                 return ListView.builder(
                   itemCount: mesAmis.length,
                   itemBuilder: (context, index) {
-                    return ListTile(
-                      leading: const CircleAvatar(backgroundColor: Colors.cyanAccent, child: Icon(Icons.person, color: Colors.black)),
-                      title: Text(mesAmis[index], style: const TextStyle(fontWeight: FontWeight.bold)),
-                      subtitle: const Text("🟢 En ligne", style: TextStyle(color: Colors.greenAccent, fontSize: 12)),
-                      trailing: const Icon(Icons.chat_bubble, color: Colors.grey),
-                      onTap: () => Navigator.pushAndRemoveUntil(context, MaterialPageRoute(builder: (context) => MainScreen(salonInitial: "Privé : ${mesAmis[index]}")), (route) => false),
-                    );
+                    return ListTile(leading: const CircleAvatar(backgroundColor: Colors.cyanAccent, child: Icon(Icons.person, color: Colors.black)), title: Text(mesAmis[index], style: const TextStyle(fontWeight: FontWeight.bold)), subtitle: const Text("🟢 En ligne", style: TextStyle(color: Colors.greenAccent, fontSize: 12)), trailing: const Icon(Icons.chat_bubble, color: Colors.grey), onTap: () => Navigator.pushAndRemoveUntil(context, MaterialPageRoute(builder: (context) => MainScreen(salonInitial: "Privé : ${mesAmis[index]}")), (route) => false));
                   },
                 );
               },
@@ -409,7 +493,6 @@ class _FriendsPageState extends State<FriendsPage> {
   }
 }
 
-// --- PAGE DES NOTIFICATIONS ---
 class NotificationsPage extends StatelessWidget {
   const NotificationsPage({super.key});
   Future<void> accepterAmi(String myUid, String notifId, String uidDemandeur, String pseudoDemandeur) async {
@@ -447,21 +530,14 @@ class NotificationsPage extends StatelessWidget {
   }
 }
 
-// --- PARAMÈTRES (PROFIL + BOUTON ADMIN) ---
-class ParametresPage extends StatefulWidget { 
-  final String monRole;
-  const ParametresPage({super.key, required this.monRole}); 
-  @override State<ParametresPage> createState() => _ParametresPageState(); 
-}
-
+class ParametresPage extends StatefulWidget { final String monRole; const ParametresPage({super.key, required this.monRole}); @override State<ParametresPage> createState() => _ParametresPageState(); }
 class _ParametresPageState extends State<ParametresPage> {
-  final TextEditingController discordController = TextEditingController();
-  final TextEditingController avatarController = TextEditingController(); 
+  final TextEditingController discordController = TextEditingController(); final TextEditingController avatarController = TextEditingController(); final TextEditingController bioController = TextEditingController(); 
   final user = FirebaseAuth.instance.currentUser;
 
   Future<void> sauvegarderProfil() async {
     if (user != null) {
-      await FirebaseFirestore.instance.collection('utilisateurs').doc(user!.uid).update({'discord': discordController.text.trim(), 'avatar': avatarController.text.trim()});
+      await FirebaseFirestore.instance.collection('utilisateurs').doc(user!.uid).update({'discord': discordController.text.trim(), 'avatar': avatarController.text.trim(), 'bio': bioController.text.trim()});
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Profil mis à jour ! ✅"), backgroundColor: Colors.green));
     }
   }
@@ -473,10 +549,8 @@ class _ParametresPageState extends State<ParametresPage> {
         future: FirebaseFirestore.instance.collection('utilisateurs').doc(user!.uid).get(),
         builder: (context, snapshot) {
           if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
-          var data = snapshot.data!.data() as Map<String, dynamic>?;
-          String pseudo = data?['pseudos']?['Général'] ?? "Joueur";
-          if (discordController.text.isEmpty) discordController.text = data?['discord'] ?? "";
-          if (avatarController.text.isEmpty) avatarController.text = data?['avatar'] ?? "";
+          var data = snapshot.data!.data() as Map<String, dynamic>?; String pseudo = data?['pseudos']?['Général'] ?? "Joueur";
+          if (discordController.text.isEmpty) discordController.text = data?['discord'] ?? ""; if (avatarController.text.isEmpty) avatarController.text = data?['avatar'] ?? ""; if (bioController.text.isEmpty) bioController.text = data?['bio'] ?? "";
           String roleAffichage = widget.monRole == 'admin' ? "👑 ADMINISTRATEUR" : "Gamer";
 
           return ListView(
@@ -485,25 +559,17 @@ class _ParametresPageState extends State<ParametresPage> {
                 color: Colors.black26, padding: const EdgeInsets.all(20),
                 child: Column(
                   children: [
-                    CircleAvatar(radius: 40, backgroundColor: Colors.cyanAccent, backgroundImage: avatarController.text.isNotEmpty ? NetworkImage(avatarController.text) : null, child: avatarController.text.isEmpty ? const Icon(Icons.person, size: 50, color: Colors.black) : null),
-                    const SizedBox(height: 10),
-                    Text(pseudo, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white)),
-                    Text(roleAffichage, style: TextStyle(color: widget.monRole == 'admin' ? Colors.amber : Colors.cyanAccent, fontWeight: FontWeight.bold)),
-                    const SizedBox(height: 20),
-                    TextField(controller: avatarController, decoration: const InputDecoration(labelText: 'URL de ta photo (Lien image)', prefixIcon: Icon(Icons.image))),
-                    const SizedBox(height: 10),
-                    TextField(controller: discordController, decoration: const InputDecoration(labelText: 'Lien/Pseudo Discord', prefixIcon: Icon(Icons.discord))),
-                    const SizedBox(height: 10),
+                    CircleAvatar(radius: 40, backgroundColor: Colors.cyanAccent, backgroundImage: avatarController.text.isNotEmpty ? NetworkImage(avatarController.text) : null, child: avatarController.text.isEmpty ? const Icon(Icons.person, size: 50, color: Colors.black) : null), const SizedBox(height: 10),
+                    Text(pseudo, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white)), Text(roleAffichage, style: TextStyle(color: widget.monRole == 'admin' ? Colors.amber : Colors.cyanAccent, fontWeight: FontWeight.bold)), const SizedBox(height: 20),
+                    TextField(controller: bioController, maxLength: 50, decoration: const InputDecoration(labelText: 'Ma Bio (ex: Cherche team...)', prefixIcon: Icon(Icons.edit))), const SizedBox(height: 10),
+                    TextField(controller: avatarController, decoration: const InputDecoration(labelText: 'URL de ta photo (Lien image)', prefixIcon: Icon(Icons.image))), const SizedBox(height: 10),
+                    TextField(controller: discordController, decoration: const InputDecoration(labelText: 'Lien/Pseudo Discord', prefixIcon: Icon(Icons.discord))), const SizedBox(height: 10),
                     ElevatedButton(onPressed: sauvegarderProfil, style: ElevatedButton.styleFrom(backgroundColor: Colors.cyanAccent), child: const Text("SAUVEGARDER LE PROFIL", style: TextStyle(color: Colors.black))),
                   ],
                 ),
               ),
-              if (widget.monRole == 'admin') ...[
-                const Divider(color: Colors.amber),
-                ListTile(leading: const Icon(Icons.gavel, color: Colors.amber), title: const Text('Panneau Administrateur', style: TextStyle(color: Colors.amber, fontWeight: FontWeight.bold)), onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const AdminPage()))),
-              ],
-              const Divider(color: Colors.white24),
-              ListTile(leading: const Icon(Icons.logout, color: Colors.redAccent), title: const Text('Se déconnecter', style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold)), onTap: () async { await FirebaseAuth.instance.signOut(); Navigator.pushAndRemoveUntil(context, MaterialPageRoute(builder: (context) => const LoginPage()), (route) => false); }),
+              if (widget.monRole == 'admin') ...[const Divider(color: Colors.amber), ListTile(leading: const Icon(Icons.gavel, color: Colors.amber), title: const Text('Panneau Administrateur', style: TextStyle(color: Colors.amber, fontWeight: FontWeight.bold)), onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const AdminPage()))),],
+              const Divider(color: Colors.white24), ListTile(leading: const Icon(Icons.logout, color: Colors.redAccent), title: const Text('Se déconnecter', style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold)), onTap: () async { await FirebaseAuth.instance.signOut(); Navigator.pushAndRemoveUntil(context, MaterialPageRoute(builder: (context) => const LoginPage()), (route) => false); }),
             ],
           );
         }
@@ -512,15 +578,13 @@ class _ParametresPageState extends State<ParametresPage> {
   }
 }
 
-// --- LA PAGE D'ADMINISTRATION SECRÈTE ---
 class AdminPage extends StatefulWidget { const AdminPage({super.key}); @override State<AdminPage> createState() => _AdminPageState(); }
 class _AdminPageState extends State<AdminPage> {
   final TextEditingController rechercheController = TextEditingController();
 
   Future<void> bannirJoueur(String uid, bool statutBanni) async {
     await FirebaseFirestore.instance.collection('utilisateurs').doc(uid).update({'banni': statutBanni});
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(statutBanni ? "🔨 Joueur banni !" : "✅ Joueur débanni !")));
-    setState((){}); 
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(statutBanni ? "🔨 Joueur banni !" : "✅ Joueur débanni !"))); setState((){}); 
   }
 
   @override Widget build(BuildContext context) {
@@ -535,19 +599,10 @@ class _AdminPageState extends State<AdminPage> {
               builder: (context, snapshot) {
                 if (rechercheController.text.isEmpty) return const Center(child: Text("Cherche un joueur à sanctionner."));
                 if (!snapshot.hasData || snapshot.data!.docs.isEmpty) return const Center(child: Text("Joueur introuvable."));
-                
-                var doc = snapshot.data!.docs.first;
-                bool isBanni = doc.data().toString().contains('banni') ? doc['banni'] : false;
-                
-                return ListTile(
-                  title: Text(doc['pseudos']['Général'], style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-                  subtitle: Text("Email : ${doc['email']}"),
-                  trailing: ElevatedButton(
-                    style: ElevatedButton.styleFrom(backgroundColor: isBanni ? Colors.green : Colors.red),
-                    onPressed: () => bannirJoueur(doc.id, !isBanni),
-                    child: Text(isBanni ? "Débannir" : "BANNIR", style: const TextStyle(color: Colors.white)),
-                  ),
-                );
+                var doc = snapshot.data!.docs.first; 
+                Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
+                bool isBanni = data['banni'] ?? false;
+                return ListTile(title: Text(data['pseudos']['Général'], style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)), subtitle: Text("Email : ${data['email']}"), trailing: ElevatedButton(style: ElevatedButton.styleFrom(backgroundColor: isBanni ? Colors.green : Colors.red), onPressed: () => bannirJoueur(doc.id, !isBanni), child: Text(isBanni ? "Débannir" : "BANNIR", style: const TextStyle(color: Colors.white))));
               },
             ),
           )
